@@ -37,4 +37,3 @@ The main idea of the paper is "function-preserving initializations". In other wo
 ### Proposed techniques
 
 The authors propose two techniques to increase the complexity of a neural network. The first, called *Net2WiderNet*, makes it possible to increase the number of neurons in a layer (or equivalently with CNNs, the number of filters per convolution), without modifying the network predictions (this method can then be applied at several layers of the network). The second, called *Net2DeeperNet*, allows you to increase the number of layers of the network, without modifying the network predictions. These two techniques can be combined to obtain a student network that is wider and deeper than the teacher network.
-
