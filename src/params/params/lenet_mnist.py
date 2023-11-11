@@ -7,17 +7,16 @@ dataset.
 ## Parameters to train the NN ##
 ################################
 
-# Define splits size
-TRAIN_SIZE = 0.7
-VAL_SIZE = 0.15
-TEST_SIZE = 0.15
-
 # Learning parameters
-LEARNING = {"batch_size": 32,
-            "nb_epochs": 10,
+LEARNING = {"batch_size": 64,
+            "nb_epochs": 4,
             "learning_rate": 0.005,
             "weight_decay": 0.0001,
-            "momentum": 0.9}
+            "momentum": 0.9  # Used only for SGD
+            }
+
+# Set the number of classes in the dataset
+NB_CLASSES = 10
 
 
 ####################################
