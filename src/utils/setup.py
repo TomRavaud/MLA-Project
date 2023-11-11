@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 
 VERSION = '0.0.1' 
-DESCRIPTION = 'Params Python package'
+DESCRIPTION = 'Utils Python package'
 
 # Setting up
 setup(
-       # The name must match the folder name 'params'
-        name="params", 
+       # The name must match the folder name 'utils'
+        name="utils", 
         version=VERSION,
         author="Tom Ravaud",
         author_email="<tom.ravaud@eleves.enpc.fr>",
@@ -15,7 +15,7 @@ setup(
         install_requires=[], # Add any additional packages that 
         # needs to be installed along with your package.
         
-        keywords=['python', 'params'],
+        keywords=['python', 'utils'],
         classifiers= [
             "Development Status :: 1 - Planning",
             "License :: OSI Approved :: MIT License",

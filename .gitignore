@@ -6,3 +6,6 @@ __pycache__/
 
 # Datasets
 MNIST/
+
+# Hidden files and directories
+.*
