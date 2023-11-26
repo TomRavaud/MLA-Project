@@ -1,309 +1,209 @@
+"""
+An implementation of the InceptionV2 model (GoogLeNet + Batch Normalization).
+"""
+
+# Import libraries
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torchsummary import summary
+from torch import nn
+from torch.nn import functional as F
 
-class conv_block(nn.Module): # Create a class for the convolutional block
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
-        super(conv_block, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
-        self.batchNormalization = nn.BatchNorm2d(out_channels)
-        self.activation = nn.ReLU()
-        
-    def forward(self, x):
-        out = self.conv(x)
-        out = self.batchNormalization(out)
-        out = self.activation(out)
-        
-        return out
 
-class stem_block(nn.Module): # Create a class for the stem block
-    def __init__(self, in_channels):
-        super(stem_block, self).__init__()
-
-        self.stem = nn.Sequential(
-            conv_block(in_channels, 32, kernel_size=3, stride=2, padding=0), # 3x3 conv
-            conv_block(32, 32, kernel_size=3, stride=1, padding=0), # 3x3 conv
-            conv_block(32, 32, kernel_size=3, stride=1, padding=1), # 3x3 conv
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=0), # 3x3 max pooling
-            conv_block(32, 80, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(80, 192, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=0) # 3x3 max pooling
-        )
-
-    def forward(self, x):
-        out = self.stem(x)
-
-        return out
-
-class inception_A_block(nn.Module): # Create a class for the inception A block which contain 4 branches
-    def __init__(self, in_channels):
-        super(inception_A_block, self).__init__()
-
-        self.branch1 = nn.Sequential( 
-            conv_block(in_channels, 48, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(48, 64, kernel_size=5, stride=1, padding=2), # 5x5 conv 
-        )
-
-        self.branch2 = nn.Sequential(
-            conv_block(in_channels, 48, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(48, 64, kernel_size=3, stride=1, padding=1), # 3x3 conv
-        )
-
-        self.branch3 = nn.Sequential(
-            nn.AvgPool2d(kernel_size=3, stride=1, padding=1), # 3x3 avg pooling
-            conv_block(in_channels, 64, kernel_size=1, stride=1, padding=0), # 1x1 conv
-        )
-
-        self.branch4 = nn.Sequential(
-            conv_block(in_channels, 64, kernel_size=1, stride=1, padding=0), # 1x1 conv
-        )
-
-    def forward(self, x):
-        out1 = self.branch1(x)
-        out2 = self.branch2(x)
-        out3 = self.branch3(x)
-        out4 = self.branch4(x)
-
-        out = torch.cat([out1, out2, out3, out4], 1)
-
-        return out
+class InceptionBN(nn.Module):
+    """
+    Inception block for InceptionV2.
+    (https://d2l.ai/chapter_convolutional-modern/googlenet.html)
     
-class inception_restnet_A_block(nn.Module): # Create a class for the inception A block which contain 3 branches and a conv
-    def __init__(self, in_channels):
-        super(inception_restnet_A_block, self).__init__()
+    The Inception block introduced in the GoogleNet paper has been modified
+    to include batch normalization layers (as well as the other network
+    layers), leading to Inception-V2 (or Inception-BN) model (Batch
+    Normalization: Accelerating Deep Network Training by Reducing Internal
+    Covariate Shift, Ioffe et al., 2015, https://arxiv.org/abs/1502.03167).
+    """
+    def __init__(self, c1: int, c2: int, c3: int, c4: int, **kwargs: dict):
+        """Constructor of the class. The number of output channels for each
+        branch is commonly tuned to make the model more efficient.
 
-        self.branch1 = nn.Sequential(
-            conv_block(in_channels, 32, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(32, 48, kernel_size=3, stride=1, padding=0), # 3x3 conv
-            conv_block(48, 64, kernel_size=3, stride=1, padding=1), # 3x3 conv
-        )
-
-        self.branch2 = nn.Sequential(
-            conv_block(in_channels, 32, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(32, 32, kernel_size=3, stride=1, padding=1), # 3x3 conv
-        )
-
-        self.branch3 = nn.Sequential(
-            conv_block(in_channels, 32, kernel_size=1, stride=1, padding=0), # 1x1 conv
-        )
-
-        self.conv = conv_block(128, 320, kernel_size=1, stride=1, padding=0) # 1x1 conv
-
-    def forward(self, x):
-        out1 = self.branch1(x)
-        out2 = self.branch2(x)
-        out3 = self.branch3(x)
-
-        out = torch.cat([out1, out2, out3], 1)
-        out = self.conv(out)
-
-        out += x
-
-        return out
-    
-class inception_resnet_b_block(nn.Module):
-    def __init__(self, in_channels):
-        super(inception_resnet_b_block, self).__init__()
-
-        self.branch1 = nn.Sequential(
-            conv_block(in_channels, 128, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(128, 160, kernel_size=(1, 7), stride=1, padding=(0, 3)), # 1x7 conv
-            conv_block(160, 192, kernel_size=(7, 1), stride=1, padding=(3, 0)), # 7x1 conv
-        )
-
-        self.branch2 = nn.Sequential(
-            conv_block(in_channels, 192, kernel_size=1, stride=1, padding=0), # 1x1 conv
-        )
-
-        self.conv = conv_block(384, 1088, kernel_size=1, stride=1, padding=0) # 1x1 conv
-
-        def forward(self, x):
-            out1 = self.branch1(x)
-            out2 = self.branch2(x)
-
-            out = torch.cat([out1, out2], 1)
-
-            out = self.conv(out)
-            out += x
-
-            return out
-
-class inception_resnet_c_block(nn.Module):
-    def __init__(self, in_channels):
-        super(inception_resnet_c_block, self).__init__()
-
-        self.branch1 = nn.Sequential(
-            conv_block(in_channels, 192, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(192, 224, kernel_size=(1, 3), stride=1, padding=(0, 1)), # 1x3 conv
-            conv_block(224, 256, kernel_size=(3, 1), stride=1, padding=(1, 0)), # 3x1 conv
-        )
-
-        self.branch2 = nn.Sequential(
-            conv_block(in_channels, 192, kernel_size=1, stride=1, padding=0), # 1x1 conv
-        )
-
-        self.conv = conv_block(448, 2080, kernel_size=1, stride=1, padding=0) # 1x1 conv
-
-    def forward(self, x):
-        out1 = self.branch1(x)
-        out2 = self.branch2(x)
-
-        out = torch.cat([out1, out2], 1)
-
-        out = self.conv(out)
-        out += x
-
-        return out
-
-class reduction_A_block(nn.Module): # Create a class for the reduction A block which contain 3 branches
-    def __init__(self, in_channels):
-        super(reduction_A_block, self).__init__()
-
-        self.branch1 = nn.Sequential(
-            conv_block(in_channels, 256, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(256, 256, kernel_size=3, stride=1, padding=1), # 3x3 conv
-            conv_block(256, 384, kernel_size=3, stride=2, padding=0), # 3x3 conv
-        )
-
-        self.branch2 = nn.Sequential(
-            conv_block(in_channels, 384, kernel_size=3, stride=2, padding=0), # 3x3 conv
-        )
-
-        self.branch3 = nn.Sequential(
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=0) # 3x3 max pooling
-        )
-
-    def forward(self, x):
-        out1 = self.branch1(x)
-        out2 = self.branch2(x)
-        out3 = self.branch3(x)
-
-        out = torch.cat([out1, out2, out3], 1)
-
-        return out
-
-class reduction_B_block(nn.Module):
-    def __init__(self, in_channels):
-        super(reduction_B_block, self).__init__()
-    
-        self.branch1 = nn.Sequential(
-            conv_block(in_channels, 256, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(256, 288, kernel_size=3, stride=1, padding=1), # 3x3 conv
-            conv_block(288, 320, kernel_size=3, stride=2, padding=0), # 3x3 conv
-        )
+        Args:
+            c1 (int): Number of output channels for branch 1.
+            c2 (int): Number of output channels for branch 2.
+            c3 (int): Number of output channels for branch 3.
+            c4 (int): Number of output channels for branch 4.
+        """
+        super(InceptionBN, self).__init__(**kwargs)
         
-        self.branch2 = nn.Sequential(
-            conv_block(in_channels, 256, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(256, 384, kernel_size=3, stride=2, padding=0), # 3x3 conv
-        )
-
-        self.branch3 = nn.Sequential(
-            conv_block(in_channels, 256, kernel_size=1, stride=1, padding=0), # 1x1 conv
-            conv_block(256, 288, kernel_size=3, stride=2, padding=0), # 3x3 conv
-        )
-
-        self.branch4 = nn.Sequential(
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=0) # 3x3 max pooling
-        )
-
-        def forward(self, x):
-            out1 = self.branch1(x)
-            out2 = self.branch2(x)
-            out3 = self.branch3(x)
-            out4 = self.branch4(x)
-
-            out = torch.cat([out1, out2, out3, out4], 1)
-
-            return out
+        # Branch 1
+        # The "lazy" modules are used to avoid the initialization of the
+        # parameters until the first forward pass.
+        self.b1 = nn.Sequential(nn.LazyConv2d(c1, kernel_size=1), 
+                                nn.LazyBatchNorm2d(),
+                                nn.ReLU())
         
+        # Branch 2
+        self.b2 = nn.Sequential(nn.LazyConv2d(c2[0], kernel_size=1),
+                                nn.LazyBatchNorm2d(),
+                                nn.ReLU(),
+                                nn.LazyConv2d(c2[1], kernel_size=3, padding=1),
+                                nn.LazyBatchNorm2d(),
+                                nn.ReLU())
+        
+        # Branch 3
+        self.b3 = nn.Sequential(nn.LazyConv2d(c3[0], kernel_size=1),
+                                nn.LazyBatchNorm2d(),
+                                nn.ReLU(),
+                                nn.LazyConv2d(c3[1], kernel_size=5, padding=2),
+                                nn.LazyBatchNorm2d(),
+                                nn.ReLU())
+        
+        # Branch 4
+        self.b4 = nn.Sequential(nn.MaxPool2d(kernel_size=3, stride=1, padding=1),
+                                nn.LazyBatchNorm2d(),
+                                nn.LazyConv2d(c4, kernel_size=1),
+                                nn.LazyBatchNorm2d(),
+                                nn.ReLU())
 
-class inception_v2(nn.Module): # Create a class for the inception v2 model which contain 9 blocks (stem, 5 inception blocks (inception_A, 10 inception ResNet_A, 20 inception ResNet_B, 10 inception ResNet_C), 2 reduction blocks (A and B), 1 conv block, 1 global avg pooling, 2 fully connected layers)
-    def __init__(self):
-        super(inception_v2, self).__init__()
 
-        self.stem = stem_block(3)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the block.
 
-        self.inceptionBlock = inception_A_block(192)
+        Args:
+            x (torch.Tensor): Input tensor.
 
-        self.resnetABlock = inception_restnet_A_block(320)
+        Returns:
+            torch.Tensor: Output tensor.
+        """
+        # Compute the output of each branch.
+        o1 = self.b1(x)
+        o2 = self.b2(x)
+        o3 = self.b3(x)
+        o4 = self.b4(x)
+        
+        # Concatenate the outputs along the channel dimension.
+        return torch.cat((o1, o2, o3, o4), dim=1)
 
-        self.reductionABlock = reduction_A_block(320)
 
-        self.resnetBBlock = inception_resnet_b_block(1088)
+class GoogleNetBN(nn.Module):
+    """
+    GoogleNet model.
+    (https://d2l.ai/chapter_convolutional-modern/googlenet.html)
+    The architecture has been simplified with respect to the original paper.
+    In particular, the numerous tricks for stabilizing training through
+    intermediate loss functions, applied to multiple layers of the network,
+    are no longer used due to the availability of improved training algorithms.
+    
+    The GoogleNet blocks have been modified to include batch normalization
+    layers, leading to Inception-V2 (or Inception-BN) model (Batch
+    Normalization: Accelerating Deep Network Training by Reducing Internal
+    Covariate Shift, Ioffe et al., 2015, https://arxiv.org/abs/1502.03167).
+    """
+    def __init__(self, num_classes: int=10) -> None:
+        """Constructor of the class.
 
-        self.reductionBBlock = reduction_B_block(1088)
+        Args:
+            num_classes (int, optional): Number of classes of the dataset.
+            Defaults to 10.
+        """
+        super(GoogleNetBN, self).__init__()
+        
+        # Assemble the blocks in order to build the network.
+        self.net = nn.Sequential(self.b1(),
+                                 self.b2(),
+                                 self.b3(),
+                                 self.b4(),
+                                 self.b5(),
+                                 nn.LazyLinear(num_classes))
+    
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the network.
 
-        self.resnetCBlock = inception_resnet_c_block(2080)
+        Args:
+            x (torch.Tensor): Input tensor.
 
-        self.conv = conv_block(2080, 1536, kernel_size=1, stride=1, padding=0) # 1x1 conv
-        self.globalAvgPool = conv_block(1536, 1536, kernel_size=8, stride=1, padding=0) # 8x8 avg pooling
+        Returns:
+            torch.Tensor: Output tensor.
+        """
+        return self.net(x)
+    
+    
+    def b1(self) -> nn.Sequential:
+        """First module of the network.
 
-        self.fc1 = nn.Linear(1536, 1536) 
-        self.fc2 = nn.Linear(1536, 1000)
+        Returns:
+            nn.Sequential: First module of the network.
+        """
+        return nn.Sequential(
+            nn.LazyConv2d(64, kernel_size=7, stride=2, padding=3),
+            nn.LazyBatchNorm2d(),
+            nn.ReLU(), nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+    
+    
+    def b2(self) -> nn.Sequential:
+        """Second module of the network.
 
-        def forward(self,x):
-            out = self.stem(x)
-            
-            out = self.inceptionBlock(out)
+        Returns:
+            nn.Sequential: Second module of the network.
+        """
+        return nn.Sequential(
+            nn.LazyConv2d(64, kernel_size=1),
+            nn.LazyBatchNorm2d(), nn.ReLU(),
+            nn.LazyConv2d(192, kernel_size=3, padding=1),
+            nn.LazyBatchNorm2d(), nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+    
+    def b3(self) -> nn.Sequential:
+        """Third module of the network. It connects two complete Inception
+        blocks in series, followed by a max-pooling layer that reduces the
+        height and width of the feature map.
 
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
-            out = self.resnetABlock(out)
+        Returns:
+            nn.Sequential: Third module of the network.
+        """
+        return nn.Sequential(
+            InceptionBN(64, (96, 128), (16, 32), 32),
+            InceptionBN(128, (128, 192), (32, 96), 64),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+    
+    def b4(self) -> nn.Sequential:
+        """Fourth module of the network. It consists of five Inception blocks
+        in series, followed by a max-pooling layer.
 
-            out = self.reductionABlock(out)
+        Returns:
+            nn.Sequential: Fourth module of the network.
+        """
+        return nn.Sequential(
+            InceptionBN(192, (96, 208), (16, 48), 64),
+            InceptionBN(160, (112, 224), (24, 64), 64),
+            InceptionBN(128, (128, 256), (24, 64), 64),
+            InceptionBN(112, (144, 288), (32, 64), 64),
+            InceptionBN(256, (160, 320), (32, 128), 128),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        
+    def b5(self) -> nn.Sequential:
+        """Fifth module of the network. It consists of two Inception blocks
+        in series, followed by a global average pooling layer to make the
+        height and width of the feature map equal to 1. Finally, the output
+        is turned into a two-dimensional array to feed the fully connected
+        layer.
 
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
-            out = self.resnetBBlock(out)
+        Returns:
+            nn.Sequential: Fifth module of the network.
+        """
+        return nn.Sequential(
+            InceptionBN(256, (160, 320), (32, 128), 128),
+            InceptionBN(384, (192, 384), (48, 128), 128),
+            nn.AdaptiveAvgPool2d((1,1)), nn.Flatten())
 
-            out = self.reductionBBlock(out)
 
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-            out = self.resnetCBlock(out)
-
-            out = self.conv(out)
-
-            out = self.globalAvgPool(out)
-
-            out = out.reshape(out.size(0), -1)
-
-            out = self.fc1(out)
-            out = nn.ReLU
-
-            out = self.fc2(out)
-            out = nn.Softmax(out)
-
-            return out
+if __name__ == "__main__":
+    
+    # Create a random tensor of shape (1, 3, 224, 224).
+    x = torch.randn(1, 3, 224, 224)
+    
+    # Create the model.
+    model = GoogleNetBN()
+    
+    # Perform the forward pass.
+    out = model(x)
+    
+    # Print the output shape.
+    print(out.shape)
