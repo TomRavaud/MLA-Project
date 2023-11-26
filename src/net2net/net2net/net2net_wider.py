@@ -3,11 +3,15 @@ An implementation of the Net2WiderNet algorithm to widen a convolutional layer
 followed by an other convolutional layer in a neural network.
 """
 
+# Import libraries
 import torch
 import torch.nn.functional as F
 import numpy as np
 import torch.nn as nn
 import copy
+
+# Import custom modules
+from dummynet import DummyNet
 
 
 class LeNetWithoutBN(nn.Module):
@@ -29,12 +33,10 @@ class LeNetWithoutBN(nn.Module):
         # Define the components of the network
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 6, kernel_size=5, stride=1, padding=0),
-            # nn.BatchNorm2d(6),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer2 = nn.Sequential(
             nn.Conv2d(6, 16, kernel_size=5, stride=1, padding=0),
-            # nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         
@@ -65,43 +67,6 @@ class LeNetWithoutBN(nn.Module):
         out = self.relu(self.fc1(out))
         out = self.relu(self.fc2(out))
         out = self.fc3(out)
-        
-        return out
-
-
-class DummyNet(nn.Module):
-    """
-    A dummy network only used to test the Net2Net class
-    """
-    def __init__(self):
-        """Constructor of the class
-
-        Args:
-            input_size (int): Size of the input
-        """        
-        super(DummyNet, self).__init__()
-        
-        # Define the components of the network
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(1, 2, kernel_size=2, stride=1, padding=0),
-            )
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(2, 1, kernel_size=2, stride=1, padding=0),
-            )
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass of the network
-
-        Args:
-            x (torch.Tensor): Input of the network
-
-        Returns:
-            torch.Tensor: Output of the network
-        """        
-        # Apply the network to the input
-        # Convolutions
-        out = self.layer1(x)
-        out = self.layer2(out)
         
         return out
 

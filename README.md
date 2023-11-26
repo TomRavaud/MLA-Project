@@ -37,3 +37,14 @@ The main idea of the paper is "function-preserving initializations". In other wo
 ### Proposed techniques
 
 The authors propose two techniques to increase the complexity of a neural network. The first, called *Net2WiderNet*, makes it possible to increase the number of neurons in a layer (or equivalently with CNNs, the number of filters per convolution), without modifying the network predictions (this method can then be applied at several layers of the network). The second, called *Net2DeeperNet*, allows you to increase the number of layers of the network, without modifying the network predictions. These two techniques can be combined to obtain a student network that is wider and deeper than the teacher network.
+
+
+## TODO
+
+- [ ] Update the "Quick Start" section of the README.md file to help the user install PyTorch with CUDA support for a different version of NVIDIA GPU driver.
+- [ ] Gather the two Net2Net techniques in a single class, and create a package for it.
+- [ ] Apply Net2WiderNet to Inception-V2 (need to adapt the code to take batch normalization and concatenation into account).
+- [ ] Apply Net2DeeperNet to Inception-V2.
+- [ ] Establish the pipeline to reproduce the results of the paper and set up the experiments on the university's GPU cluster.
+- [ ] Update the README files in the `src` directory to describe the code.
+- [ ] Download the ImageNet dataset and train Inception-V2 from scratch on it.

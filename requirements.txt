@@ -77,3 +77,4 @@ wcwidth==0.2.9
 wheel==0.41.2
 -e src/params
 -e src/utils
+-e src/net2net

@@ -95,7 +95,7 @@ class GoogleNetBN(nn.Module):
     Normalization: Accelerating Deep Network Training by Reducing Internal
     Covariate Shift, Ioffe et al., 2015, https://arxiv.org/abs/1502.03167).
     """
-    def __init__(self, num_classes: int=10) -> None:
+    def __init__(self, nb_classes: int=10) -> None:
         """Constructor of the class.
 
         Args:
@@ -110,7 +110,7 @@ class GoogleNetBN(nn.Module):
                                  self.b3(),
                                  self.b4(),
                                  self.b5(),
-                                 nn.LazyLinear(num_classes))
+                                 nn.LazyLinear(nb_classes))
     
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
