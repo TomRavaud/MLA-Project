@@ -112,13 +112,17 @@ class Net2Net:
     def net2wider(self,
                   target_layer: str,
                   next_layer: str,
-                  width: int):
+                  width: int,
+                  sigma: float = 0.01):
         """Widen a layer of a neural network
 
         Args:
             target_layer (str): Layer to be widened
             next_layer (str): Next layer in the network
             width (int): New width of the layer
+            sigma (float, optional): Standard deviation of the noise added to
+            the weights and biases of the supplementary filters. Defaults to
+            0.01.
         """
         
         # Wrap the computation in a no_grad() block to prevent PyTorch from
@@ -179,14 +183,21 @@ class Net2Net:
                                                                    None]
 
             # Add the weights and biases of the supplementary filters to the
-            # student network
+            # student network, with a small amount of noise to break symmetry
             student_w1[nb_filters_teacher:, :, :, :] =\
-                teacher_w1[random_indices, :, :, :]
-            student_b1[nb_filters_teacher:] = teacher_b1[random_indices]
+                teacher_w1[random_indices, :, :, :] +\
+                    torch.randn((width-nb_filters_teacher,
+                                 teacher_w1.shape[1],
+                                 teacher_w1.shape[2],
+                                 teacher_w1.shape[3])) * sigma
+
+            student_b1[nb_filters_teacher:] = teacher_b1[random_indices] +\
+                    torch.randn(width-nb_filters_teacher) * sigma
+
             student_w2[:, nb_filters_teacher:, :, :] =\
                 teacher_w2[:, random_indices, :, :] /\
                 replication_factor[random_indices][None, :, None, None]
- 
+            
 
             # Create a copy of the student network
             new_student_network = copy.deepcopy(self.student_network)
@@ -235,7 +246,7 @@ class Net2Net:
             # (load only the modified weights and biases)
             self.student_network.load_state_dict(modified_state_dict,
                                                  strict=False)
-            
+
 
 if __name__ == '__main__':
 
@@ -283,7 +294,8 @@ if __name__ == '__main__':
     # Widen a layer of the network
     net2net.net2wider(target_layer=target_layer,
                       next_layer=next_layer,
-                      width=new_width)
+                      width=new_width,
+                      sigma=0.)
     
     # Compute the output of the teacher network
     y_teacher = model1(x)
@@ -314,7 +326,8 @@ if __name__ == '__main__':
     # Widen a layer of the network
     net2net.net2wider(target_layer=target_layer,
                       next_layer=next_layer,
-                      width=new_width)
+                      width=new_width,
+                      sigma=0.)
     
     # Create a random input
     x = torch.randn(1, 1, 32, 32)
