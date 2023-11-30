@@ -5,12 +5,31 @@ The goal of this project is to reproduce the results of a recent research paper 
 
 ## Quick Start
 
-To create a virtual **conda** environment and install the required packages, run the following commands in the root directory of the project:
+To create and activate a virtual **conda** environment, run the following commands:
 
 ```bash
 conda create -n mla python=3.10
 conda activate mla
-pip install -r requirements.txt
+```
+
+Then, install a version of **PyTorch** with CUDA support (if you have an NVIDIA GPU), compatible with your version of NVIDIA GPU driver. Have a look at the [PyTorch website](https://pytorch.org/) to find the right command to run. For instance, if you have an NVIDIA GPU with CUDA 11.8 support, run the following command:
+
+```bash
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+```
+
+Install the other dependencies by running the following command in the root directory of the project:
+
+```bash
+pip3 install -r requirements.txt
+```
+
+To execute the Jupyter notebooks, you will need to install the **ipykernel** package in the conda environment and to create
+a kernel for this environment:
+    
+```bash
+pip3 install ipykernel
+python -m ipykernel install --user --name=mla
 ```
 
 To exit the virtual environment, and remove it if needed, run the following commands:
@@ -41,7 +60,7 @@ The authors propose two techniques to increase the complexity of a neural networ
 
 ## TODO
 
-- [ ] Update the "Quick Start" section of the README.md file to help the user install PyTorch with CUDA support for a different version of NVIDIA GPU driver.
+- [x] Update the "Quick Start" section of the README.md file to help the user install PyTorch with CUDA support for a different version of NVIDIA GPU driver.
 - [ ] Gather the two Net2Net techniques in a single class, and create a package for it.
 - [x] Apply Net2WiderNet to Inception-V2 (need to adapt the code to take batch normalization and concatenation into account).
 - [ ] Apply Net2DeeperNet to Inception-V2.
