@@ -49,6 +49,6 @@ The authors propose two techniques to increase the complexity of a neural networ
 - [ ] Update the README files in the `src` directory to describe the code.
 - [x] Download the ImageNet dataset and train Inception-V2 from scratch on it.
 - [x] Add dropout to the Inception-V2 architecture (or some random noise to the replicated weights) to help the student network to learn to use its full capacity.
-- [ ] Implement the "Random pad" baseline method to compare the Net2WiderNet technique with it.
-- [x] Introduce a multiplicative factor to modulate the number of output filters of each branch of the Inception module, and check that setting this factor to $\sqrt{3}$ (as in the paper) leads to a reduction of 30% of the number of parameters.
+- [x] Implement the "Random pad" baseline method to compare the Net2WiderNet technique with it.
+- [x] Introduce a multiplicative factor to modulate the number of output filters of each branch of the Inception module, and check that setting this factor to $\sqrt{3}$ (as in the paper) leads to a reduction of 60% of the number of parameters.
 - [x] Split the code of the Net2WiderNet technique into several functions to make it more readable.

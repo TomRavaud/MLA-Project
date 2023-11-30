@@ -57,7 +57,8 @@ class Net2Net:
                   next_layers: list,
                   width: list,
                   batch_norm_layers: list = [None],
-                  sigma: float = 0.01):
+                  sigma: float = 0.001,
+                  random_pad: bool = False):
         """Widen convolutional layers of a neural networks
 
         Args:
@@ -78,6 +79,10 @@ class Net2Net:
             sigma (float, optional): Standard deviation of the noise added to
             the weights and biases of the supplementary filters. Defaults to
             0.01.
+            
+            random_pad (bool, optional): If True, the weights and biases of the
+            supplementary filters are initialized with random values. Defaults
+            to False.
         """
         
         # Get the number of output filters of each target layer
@@ -95,7 +100,8 @@ class Net2Net:
             indices = self._net2wider_target_conv(
                 target_conv_layer=target_conv_layers[i],
                 width=width[i],
-                sigma=sigma)
+                sigma=sigma,
+                random_pad=random_pad)
         
             # Check if there is a batch normalization layer between the target
             # layer and the next layer in the teacher network (the layer must
@@ -103,7 +109,8 @@ class Net2Net:
             if batch_norm_layers[i]: 
                 self._net2wider_bn(batch_norm_layer=batch_norm_layers[i],
                                    width=width[i],
-                                   indices=indices)
+                                   indices=indices,
+                                   random_pad=random_pad)
         
         
             # Check is the next layer is a convolutional layer or a fully
@@ -122,7 +129,8 @@ class Net2Net:
                         width=width[i],
                         indices=indices,
                         index_input=i,
-                        nb_filters=nb_filters)
+                        nb_filters=nb_filters,
+                        random_pad=random_pad)
 
                 # Check if the next layer is a fully connected layer
                 elif isinstance(module, nn.Linear):
@@ -131,7 +139,8 @@ class Net2Net:
                         width=width[i],
                         indices=indices,
                         index_input=i,
-                        nb_filters=nb_filters)
+                        nb_filters=nb_filters,
+                        random_pad=random_pad)
 
                 else:
                     raise ValueError(
@@ -159,7 +168,8 @@ class Net2Net:
                            width: int,
                            indices: np.ndarray,
                            index_input: int,
-                           nb_filters: list):
+                           nb_filters: list,
+                           random_pad: bool):
         """Widen a fully connected layer of a neural network which takes as
         input the output of convolutional layers (outputs of the convolutional
         layers are concatenated, averaged and flattened before being fed to
@@ -172,6 +182,8 @@ class Net2Net:
             index_input (int): Index of the target layer in the list of the
             convolutional layers to be concatenated
             nb_filters (list): Number of filters of each convolutional layer
+            random_pad (bool): If True, the weights and biases of the new
+            filters are initialized with random values
         """
         
         # Wrap the computation in a no_grad() block to prevent PyTorch from
@@ -209,32 +221,53 @@ class Net2Net:
             # in the student network are unchanged
             index_unchanged_after = index_unchanged_before + width
             
+            
             # Copy the weights and biases of the next layer of the teacher
             # network to the student network (unchanged units)
             student_w2[:, :index_unchanged_before] =\
                 teacher_w2[:, :index_unchanged_before]
-
-            # Copy the weights and biases corresponding to the target layer
-            # of the teacher network to the student network (repeated units)
-            student_w2[:, index_unchanged_before:
-                          index_unchanged_before+nb_filters[index_input]] =\
-                teacher_w2[:, index_unchanged_before:
-                              index_unchanged_before+nb_filters[index_input]] /\
-                    replication_factor[indices[:nb_filters[index_input]]][None, :]
-                
-            # Add the weights of the supplementary units to the student network
-            # (repeated units)
-            student_w2[:, index_unchanged_before+nb_filters[index_input]:
-                          index_unchanged_after] =\
-                teacher_w2[:, index_unchanged_before:index_unchanged_after]\
-                          [:, indices[nb_filters[index_input]:]] /\
-                    replication_factor[indices[nb_filters[index_input]:]][None, :]
             
             # Copy the weights and biases of the next layer of the teacher
             # network to the student network (unchanged units)
             student_w2[:, index_unchanged_after:] =\
                 teacher_w2[:, index_unchanged_before+nb_filters[index_input]:]
+            
+            
+            # If using the random_pad option, the weights and biases of the
+            # new units are initialized with random values
+            if random_pad:
+                # Copy the weights and biases corresponding to the target layer
+                # of the teacher network to the student network
+                # (without replication)
+                student_w2[:, index_unchanged_before:
+                              index_unchanged_before+nb_filters[index_input]] =\
+                    teacher_w2[:, index_unchanged_before:
+                                  index_unchanged_before+nb_filters[index_input]]
                 
+                # Initialize the weights and biases of the supplementary units
+                # with random values
+                student_w2[:, index_unchanged_before+nb_filters[index_input]:
+                              index_unchanged_after] =\
+                    torch.randn((teacher_w2.shape[0],
+                                 width-nb_filters[index_input])) * 0.01
+                
+            else:
+                # Copy the weights and biases corresponding to the target layer
+                # of the teacher network to the student network (repeated units)
+                student_w2[:, index_unchanged_before:
+                              index_unchanged_before+nb_filters[index_input]] =\
+                    teacher_w2[:, index_unchanged_before:
+                                  index_unchanged_before+nb_filters[index_input]] /\
+                        replication_factor[indices[:nb_filters[index_input]]][None, :]
+
+                # Add the weights of the supplementary units to the student network
+                # (repeated units)
+                student_w2[:, index_unchanged_before+nb_filters[index_input]:
+                              index_unchanged_after] =\
+                    teacher_w2[:, index_unchanged_before:index_unchanged_after]\
+                              [:, indices[nb_filters[index_input]:]] /\
+                        replication_factor[indices[nb_filters[index_input]:]][None, :]
+            
             
             # Replace the next layer in the student network by the new layer
             # with the supplementary units
@@ -258,7 +291,8 @@ class Net2Net:
                              width: int,
                              indices: np.ndarray,
                              index_input: int,
-                             nb_filters: list):
+                             nb_filters: list,
+                             random_pad: bool):
         """Widen a convolutional layer of a neural network which takes as
         input the output of convolutional layers (outputs of the convolutional
         layers are concatenated)
@@ -270,6 +304,8 @@ class Net2Net:
             index_input (int): Index of the target layer in the list of the
             convolutional layers to be concatenated
             nb_filters (list): Number of filters of each convolutional layer
+            random_pad (bool): If True, the weights and biases of the new
+            filters are initialized with random values
         """
         
         # Wrap the computation in a no_grad() block to prevent PyTorch from
@@ -300,7 +336,6 @@ class Net2Net:
             # times a same filter is used)
             replication_factor = np.bincount(indices)
             
-            
             # Get the index before which the weights and biases of the filters
             # in the student network are unchanged
             index_unchanged_before =\
@@ -315,34 +350,55 @@ class Net2Net:
             student_w2[:, :index_unchanged_before, :, :] =\
                 teacher_w2[:, :index_unchanged_before, :, :]
 
-            # Copy the weights and biases corresponding to the target layer
-            # of the teacher network to the student network (repeated units)
-            student_w2[:, index_unchanged_before:
-                          index_unchanged_before+nb_filters[index_input], :, :] =\
-                teacher_w2[:, index_unchanged_before:
-                              index_unchanged_before+nb_filters[index_input], :, :] /\
-                    replication_factor[indices[:nb_filters[index_input]]][None,
-                                                                          :,
-                                                                          None,
-                                                                          None]
-                
-            # Add the weights of the supplementary units to the student network
-            # (repeated units)
-            student_w2[:, index_unchanged_before+nb_filters[index_input]:
-                          index_unchanged_after, :, :] =\
-                    teacher_w2[:, index_unchanged_before:index_unchanged_after, :, :]\
-                              [:, indices[nb_filters[index_input]:]] /\
-                        replication_factor[indices[nb_filters[index_input]:]][None,
-                                                                              :,
-                                                                              None,
-                                                                              None]
-            
             # Copy the weights and biases of the next layer of the teacher
             # network to the student network (unchanged units)
             student_w2[:, index_unchanged_after:, :, :] =\
                 teacher_w2[:,
                            index_unchanged_before+nb_filters[index_input]:,
                            :, :]
+            
+            # If using the random_pad option, the weights and biases of the
+            # new units are initialized with random values
+            if random_pad:
+                # Copy the weights and biases corresponding to the target layer
+                # of the teacher network to the student network
+                # (without replication)
+                student_w2[:, index_unchanged_before:
+                              index_unchanged_before+nb_filters[index_input], :, :] =\
+                        teacher_w2[:, index_unchanged_before:
+                                      index_unchanged_before+nb_filters[index_input], :, :]
+                
+                # Initialize the weights and biases of the supplementary units
+                # with random values
+                student_w2[:, index_unchanged_before+nb_filters[index_input]:
+                              index_unchanged_after, :, :] =\
+                        torch.randn((teacher_w2.shape[0],
+                                     width-nb_filters[index_input],
+                                     teacher_w2.shape[2],
+                                     teacher_w2.shape[3])) * 0.01
+            
+            else:
+                # Copy the weights and biases corresponding to the target layer
+                # of the teacher network to the student network (repeated units)
+                student_w2[:, index_unchanged_before:
+                              index_unchanged_before+nb_filters[index_input], :, :] =\
+                    teacher_w2[:, index_unchanged_before:
+                                  index_unchanged_before+nb_filters[index_input], :, :] /\
+                        replication_factor[indices[:nb_filters[index_input]]][None,
+                                                                              :,
+                                                                              None,
+                                                                              None]
+
+                # Add the weights of the supplementary units to the student network
+                # (repeated units)
+                student_w2[:, index_unchanged_before+nb_filters[index_input]:
+                              index_unchanged_after, :, :] =\
+                        teacher_w2[:, index_unchanged_before:index_unchanged_after, :, :]\
+                                  [:, indices[nb_filters[index_input]:]] /\
+                            replication_factor[indices[nb_filters[index_input]:]][None,
+                                                                                  :,
+                                                                                  None,
+                                                                                  None]
             
             
             # Replace the next layer in the student network by the new layer
@@ -368,13 +424,16 @@ class Net2Net:
     def _net2wider_target_conv(self,
                                target_conv_layer: str,
                                width: int,
-                               sigma: float) -> np.ndarray:
+                               sigma: float,
+                               random_pad: bool) -> np.ndarray:
         """Widen a convolutional layer of a neural network
 
         Args:
             target_conv_layer (str): Name of the target convolutional layer
             width (int): New width of the widened target layer
             sigma (float): Standard deviation of the noise added to the weights
+            random_pad (bool): If True, the weights and biases of the new
+            filters are initialized with random values
 
         Returns:
             np.ndarray: Indices given by the random mapping function
@@ -414,22 +473,34 @@ class Net2Net:
         student_w1[:nb_filters_teacher, :, :, :] = teacher_w1
         student_b1[:nb_filters_teacher] = teacher_b1
         
-        # Copy the weights and biases of the target layer and the next
-        # layer of the teacher network to the student network
-        student_w1[:nb_filters_teacher, :, :, :] = teacher_w1
-        student_b1[:nb_filters_teacher] = teacher_b1
         
-        # Add the weights and biases of the supplementary filters to the
-        # student network, with a small amount of noise to break symmetry
-        student_w1[nb_filters_teacher:, :, :, :] =\
-            teacher_w1[random_indices, :, :, :] +\
+        # If using the random_pad option, the weights and biases of the
+        # new units are initialized with random values
+        if random_pad:
+            # Initialize the weights and biases of the supplementary filters
+            # with random values
+            student_w1[nb_filters_teacher:, :, :, :] =\
                 torch.randn((width-nb_filters_teacher,
                              teacher_w1.shape[1],
                              teacher_w1.shape[2],
-                             teacher_w1.shape[3])) * sigma
+                             teacher_w1.shape[3])) * 0.01
+            
+            student_b1[nb_filters_teacher:] =\
+                torch.randn(width-nb_filters_teacher) * 0.01
+            
+        else:
+            # Add the weights and biases of the supplementary filters to the
+            # student network, with a small amount of noise to break symmetry
+            student_w1[nb_filters_teacher:, :, :, :] =\
+                teacher_w1[random_indices, :, :, :] +\
+                    torch.randn((width-nb_filters_teacher,
+                                 teacher_w1.shape[1],
+                                 teacher_w1.shape[2],
+                                 teacher_w1.shape[3])) * sigma
 
-        student_b1[nb_filters_teacher:] = teacher_b1[random_indices] +\
-                torch.randn(width-nb_filters_teacher) * sigma
+            student_b1[nb_filters_teacher:] = teacher_b1[random_indices] +\
+                    torch.randn(width-nb_filters_teacher) * sigma
+        
         
         # Replace the target layer and the next layer in the student network
         # by the new layers with the supplementary filters
@@ -456,13 +527,16 @@ class Net2Net:
     def _net2wider_bn(self,
                       batch_norm_layer: str,
                       width: int,
-                      indices: np.ndarray) -> None:
+                      indices: np.ndarray,
+                      random_pad: bool) -> None:
         """Widen a batch normalization layer of a neural network
 
         Args:
             batch_norm_layer (str): Name of the batch normalization layer
             width (int): New width of the widened target layer
             indices (np.ndarray): Indices given by the random mapping function
+            random_pad (bool): If True, the weights and biases of the new
+            filters are initialized with random values
         """
         
         # Get the weights (scale parameters) and biases (shift parameters)
@@ -486,12 +560,24 @@ class Net2Net:
         student_gamma[:nb_filters_teacher] = teacher_gamma
         student_beta[:nb_filters_teacher] = teacher_beta
 
-        # Add the weights and biases of the supplementary filters to the
-        # student network
-        student_gamma[nb_filters_teacher:] =\
-            teacher_gamma[indices[nb_filters_teacher:]]
-        student_beta[nb_filters_teacher:] =\
-            teacher_beta[indices[nb_filters_teacher:]]
+        
+        # If using the random_pad option, the weights and biases of the
+        # new units are initialized with random values
+        if random_pad:
+            # Initialize the weights and biases of the supplementary filters
+            # with random values
+            student_gamma[nb_filters_teacher:] =\
+                torch.randn(width-nb_filters_teacher) * 0.01
+            student_beta[nb_filters_teacher:] =\
+                torch.randn(width-nb_filters_teacher) * 0.01
+            
+        else:
+            # Add the weights and biases of the supplementary filters to the
+            # student network
+            student_gamma[nb_filters_teacher:] =\
+                teacher_gamma[indices[nb_filters_teacher:]]
+            student_beta[nb_filters_teacher:] =\
+                teacher_beta[indices[nb_filters_teacher:]]
         
         # Replace the target layer and the next layer in the student network
         # by the new layers with the supplementary filters
