@@ -43,11 +43,12 @@ The authors propose two techniques to increase the complexity of a neural networ
 
 - [ ] Update the "Quick Start" section of the README.md file to help the user install PyTorch with CUDA support for a different version of NVIDIA GPU driver.
 - [ ] Gather the two Net2Net techniques in a single class, and create a package for it.
-- [ ] Apply Net2WiderNet to Inception-V2 (need to adapt the code to take batch normalization and concatenation into account).
+- [x] Apply Net2WiderNet to Inception-V2 (need to adapt the code to take batch normalization and concatenation into account).
 - [ ] Apply Net2DeeperNet to Inception-V2.
 - [ ] Establish the pipeline to reproduce the results of the paper and set up the experiments on the university's GPU cluster.
 - [ ] Update the README files in the `src` directory to describe the code.
-- [ ] Download the ImageNet dataset and train Inception-V2 from scratch on it.
+- [x] Download the ImageNet dataset and train Inception-V2 from scratch on it.
 - [x] Add dropout to the Inception-V2 architecture (or some random noise to the replicated weights) to help the student network to learn to use its full capacity.
 - [ ] Implement the "Random pad" baseline method to compare the Net2WiderNet technique with it.
 - [x] Introduce a multiplicative factor to modulate the number of output filters of each branch of the Inception module, and check that setting this factor to $\sqrt{3}$ (as in the paper) leads to a reduction of 30% of the number of parameters.
+- [x] Split the code of the Net2WiderNet technique into several functions to make it more readable.

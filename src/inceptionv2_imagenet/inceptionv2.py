@@ -75,7 +75,6 @@ class InceptionBN(nn.Module):
         self.b4 = nn.Sequential(nn.MaxPool2d(kernel_size=3,
                                              stride=1,
                                              padding=1),
-                                nn.LazyBatchNorm2d(),
                                 nn.LazyConv2d(int(factor*c4),
                                               kernel_size=1),
                                 nn.LazyBatchNorm2d(),
@@ -132,7 +131,8 @@ class GoogleNetBN(nn.Module):
                                  self.b3(inception_factor=inception_factor),
                                  self.b4(inception_factor=inception_factor),
                                  self.b5(inception_factor=inception_factor),
-                                 nn.LazyLinear(nb_classes))
+                                 nn.LazyLinear(nb_classes),
+                                 )
     
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -225,7 +225,8 @@ class GoogleNetBN(nn.Module):
         return nn.Sequential(
             InceptionBN(256, (160, 320), (32, 128), 128, inception_factor),
             InceptionBN(384, (192, 384), (48, 128), 128, inception_factor),
-            nn.AdaptiveAvgPool2d((1,1)), nn.Flatten())
+            nn.AdaptiveAvgPool2d((1,1)), nn.Flatten(),
+            )
 
 
 if __name__ == "__main__":
@@ -234,7 +235,7 @@ if __name__ == "__main__":
     x = torch.randn(1, 3, 224, 224)
     
     # Create the model.
-    model = GoogleNetBN(inception_factor=np.sqrt(0.3))
+    model = GoogleNetBN(inception_factor=1)
     
     # Print the model summary
     # (layers, output shape, number of parameters, memory usage, ...)

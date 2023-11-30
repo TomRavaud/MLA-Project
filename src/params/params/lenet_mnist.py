@@ -24,6 +24,7 @@ NB_CLASSES = 10
 ####################################
 
 IMAGE_SHAPE = (32, 32)
+NB_CHANNELS = 1
 
 # Define the mean and std of the dataset
 # (pre-computed on the MNIST dataset)
