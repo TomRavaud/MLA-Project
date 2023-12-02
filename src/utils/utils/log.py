@@ -3,6 +3,7 @@ import os
 import torch
 from typing import List, Any
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def parameters_table(dataset: str,
@@ -99,6 +100,10 @@ def generate_log(results_directory: str,
     plt.xlabel("Epoch")
     
     plt.savefig(results_directory + "/accuracy_curve.png")
+    
+    # Save the training and validation accuracies
+    np.save(results_directory + "/train_accuracies.npy", train_accuracies)
+    np.save(results_directory + "/val_accuracies.npy", val_accuracies)
     
     # Save the model parameters
     torch.save(model.state_dict(),

@@ -1,6 +1,6 @@
 """
 This file contains the parameters used to train the Inception-V2 network on
-the ImageNet dataset.
+the CIFAR-10 dataset.
 """
 
 ################################
@@ -8,7 +8,7 @@ the ImageNet dataset.
 ################################
 
 # Learning parameters
-LEARNING = {"batch_size": 256,
+LEARNING = {"batch_size": 128,
             "nb_epochs": 1,
             "learning_rate": 0.005,
             "weight_decay": 0.0001,
@@ -16,7 +16,7 @@ LEARNING = {"batch_size": 256,
             }
 
 # Set the number of classes in the dataset
-NB_CLASSES = 1000
+NB_CLASSES = 10
 
 
 ####################################
@@ -24,13 +24,13 @@ NB_CLASSES = 1000
 ####################################
 
 # Shape of the images in the ImageNet dataset
-IMAGE_SHAPE = (224, 224)
+IMAGE_SHAPE = (33, 33)
 NB_CHANNELS = 3
 
 # Define the mean and std of the dataset
-# (pre-computed on the ImageNet dataset)
-NORMALIZE_PARAMS = {"mean": (0.485, 0.456, 0.406),
-                    "std": (0.229, 0.224, 0.225)}
+# (pre-computed on the CIFAR-10 dataset)
+NORMALIZE_PARAMS = {"mean": (0.4914, 0.4822, 0.4465),
+                    "std": (0.247, 0.243, 0.261)}
 
 
 ##################

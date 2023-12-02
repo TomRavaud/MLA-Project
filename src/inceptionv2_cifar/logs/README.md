@@ -1,0 +1,1 @@
+This folder contains the log files generated after each NN training and testing.
