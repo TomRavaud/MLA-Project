@@ -64,7 +64,7 @@ The authors propose two techniques to increase the complexity of a neural networ
 - [ ] Gather the two Net2Net techniques in a single class, and create a package for it.
 - [x] Apply Net2WiderNet to Inception-V2 (need to adapt the code to take batch normalization and concatenation into account).
 - [ ] Apply Net2DeeperNet to Inception-V2.
-- [ ] Establish the pipeline to reproduce the results of the paper and set up the experiments on the university's GPU cluster.
+- [x] Establish the pipeline to reproduce the results of the paper and set up the experiments on the university's GPU cluster.
 - [ ] Update the README files in the `src` directory to describe the code.
 - [x] Download the ImageNet dataset and train Inception-V2 from scratch on it.
 - [x] Add dropout to the Inception-V2 architecture (or some random noise to the replicated weights) to help the student network to learn to use its full capacity.

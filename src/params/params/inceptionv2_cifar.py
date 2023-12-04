@@ -3,6 +3,28 @@ This file contains the parameters used to train the Inception-V2 network on
 the CIFAR-10 dataset.
 """
 
+# Import libraries
+import numpy as np
+
+
+# Dataset name (for logging purposes, can be anything)
+DATASET_NAME = "CIFAR-10"
+
+# Path to the dedicated directory
+PATH = "src/inceptionv2_cifar/"
+
+
+#############################
+## Architecture parameters ##
+#############################
+
+# Inception modulation factor (how much the number of filters is multiplied)
+INCEPTION_FACTOR = np.sqrt(0.3)
+
+# Set the number of classes in the dataset
+NB_CLASSES = 10
+
+
 ################################
 ## Parameters to train the NN ##
 ################################
@@ -14,9 +36,6 @@ LEARNING = {"batch_size": 128,
             "weight_decay": 0.0001,
             "momentum": 0.9  # Only used for SGD
             }
-
-# Set the number of classes in the dataset
-NB_CLASSES = 10
 
 
 ####################################
@@ -31,6 +50,31 @@ NB_CHANNELS = 3
 # (pre-computed on the CIFAR-10 dataset)
 NORMALIZE_PARAMS = {"mean": (0.4914, 0.4822, 0.4465),
                     "std": (0.247, 0.243, 0.261)}
+
+
+############
+## Optuna ##
+############
+
+# Study name
+STUDY_NAME = "inceptionv2_cifar"
+
+# Study database storage path
+STUDY_DB_PATH =\
+    f"sqlite:///src/inceptionv2_cifar/logs/{STUDY_NAME}/{STUDY_NAME}.db"
+
+# Number of trials for the Optuna optimization
+NB_TRIALS = 3
+
+# Number of seeds to test for each trial (in order to get more robust results)
+NB_SEEDS = 3
+
+# Learning rate search space
+LR_RANGE = (1e-5, 1e-2)
+
+# Number of epochs to wait before stopping the training if the validation
+# accuracy does not improve
+PATIENCE = 10
 
 
 ##################

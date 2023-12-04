@@ -101,6 +101,9 @@ def generate_log(results_directory: str,
     
     plt.savefig(results_directory + "/accuracy_curve.png")
     
+    # Close all the previously opened figures
+    plt.close("all")
+    
     # Save the training and validation accuracies
     np.save(results_directory + "/train_accuracies.npy", train_accuracies)
     np.save(results_directory + "/val_accuracies.npy", val_accuracies)
