@@ -14,9 +14,9 @@ DATASET_NAME = "CIFAR-10"
 PATH = "src/inceptionv2_cifar/"
 
 
-#############################
-## Architecture parameters ##
-#############################
+###############################################
+## Architecture parameters (teacher network) ##
+###############################################
 
 # Inception modulation factor (how much the number of filters is multiplied)
 INCEPTION_FACTOR = np.sqrt(0.3)
@@ -36,6 +36,12 @@ LEARNING = {"batch_size": 128,
             "weight_decay": 0.0001,
             "momentum": 0.9  # Only used for SGD
             }
+
+# Set the learning rate that has been optimized for the teacher network
+LR_TEACHER = 0.0015  # inception factor = sqrt(0.3)
+
+# Learning rate that has been optimized on the random initialization baseline
+LR_RANDOM_INITIALIZATION = 0.002
 
 
 ####################################
@@ -57,11 +63,14 @@ NORMALIZE_PARAMS = {"mean": (0.4914, 0.4822, 0.4465),
 ############
 
 # Study name
-STUDY_NAME = "inceptionv2_cifar"
+STUDY_NAME = "test_student"
 
 # Study database storage path
 STUDY_DB_PATH =\
     f"sqlite:///src/inceptionv2_cifar/logs/{STUDY_NAME}/{STUDY_NAME}.db"
+
+# Optimize the student network (otherwise optimize the teacher network)
+OPTIMIZE_STUDENT = True
 
 # Number of trials for the Optuna optimization
 NB_TRIALS = 3
@@ -80,6 +89,12 @@ PATIENCE = 10
 ##################
 ## Net2WiderNet ##
 ##################
+
+# Random noise to add to the weights of the new layers
+SIGMA = 0.001
+
+# Use the baseline method (random pad) instead of Net2WiderNet
+RANDOM_PAD = False
 
 # Define the parameters of the Net2WiderNet algorithm for each call
 # (there are three calls per Inception block)

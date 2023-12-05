@@ -4,4 +4,3 @@ This folder the code for the experiments we conducted to apply the Net2Net techn
 
 It is organized as follows:
 - `main.py` contains the code to run the experiments.
-- `inceptionv2.py` contains the implementation of the Inception-V2 model.

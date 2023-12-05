@@ -39,6 +39,15 @@ conda deactivate
 conda remove -n mla --all
 ```
 
+### *Note:*
+
+All the scripts in this repository should be run from the root directory of the project (for paths to be resolved correctly). For instance, to run the script `src/inceptionv2_cifar/main.py`, run the following command:
+
+```bash
+python3 src/inceptionv2_cifar/main.py
+```
+
+
 ## Net2Net
 
 ### Context of the study
@@ -71,3 +80,6 @@ The authors propose two techniques to increase the complexity of a neural networ
 - [x] Implement the "Random pad" baseline method to compare the Net2WiderNet technique with it.
 - [x] Introduce a multiplicative factor to modulate the number of output filters of each branch of the Inception module, and check that setting this factor to $\sqrt{0.3}$ (as in the paper) leads to a reduction of 60% of the number of parameters.
 - [x] Split the code of the Net2WiderNet technique into several functions to make it more readable.
+- [x] Create a package for models (LeNet, Inception-V2)
+- [x] Add a method to widen multiple layers of a network
+- [ ] Update the parameters files for Inception-V2/ImageNet and LeNet/MNIST to match the one of Inception-V2/CIFAR-10 (and the training code).

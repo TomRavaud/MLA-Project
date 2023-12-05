@@ -24,17 +24,19 @@ import utils.log
 import utils.train
 import utils.test
 import utils.validate
-from inceptionv2 import GoogleNetBN
+from models.inceptionv2 import GoogleNetBN
+import net2net.net2net_wider
 
 
-def objective(learning_params: dict) -> float:
+def objective(learning_params: dict, model: nn.Module) -> tuple:
     """Objective function
 
     Args:
         learning_params (dict): Learning parameters for the training
+        model (nn.Module): The model to train
 
     Returns:
-        float: The validation accuracy
+        tuple: The validation accuracy and the trained model
     """
     
     # Compose several transforms together to be applied to data
@@ -46,8 +48,8 @@ def objective(learning_params: dict) -> float:
         # Convert a PIL Image or numpy.ndarray to tensor
         transforms.ToTensor(),
 
-        # Normalize a tensor image with pre-computed mean and standard deviation
-        # (based on the data used to train the model(s))
+        # Normalize a tensor image with pre-computed mean and standard
+        # deviation (based on the data used to train the model(s))
         # (be careful, it only works on torch.*Tensor)
         transforms.Normalize(**params.inceptionv2_cifar.NORMALIZE_PARAMS),
     ])
@@ -68,8 +70,8 @@ def objective(learning_params: dict) -> float:
         download=True,
     )
 
-    # As CIFAR-10 does not provide a validation dataset, we will split the train
-    # dataset into a train and a validation dataset
+    # As CIFAR-10 does not provide a validation dataset, we will split the
+    # train dataset into a train and a validation dataset
 
     # Start by loading the train dataset, with the same transform as the
     # test dataset
@@ -98,7 +100,7 @@ def objective(learning_params: dict) -> float:
         dataset = train_dataset,
         batch_size = learning_params['batch_size'],
         shuffle = True,
-        num_workers=20,  # Asynchronous data loading and augmentation
+        num_workers=10,  # Asynchronous data loading and augmentation
         pin_memory=True,  # Increase the transferring speed to the GPU
     )
 
@@ -106,7 +108,7 @@ def objective(learning_params: dict) -> float:
         dataset = test_dataset,
         batch_size = learning_params['batch_size'],
         shuffle = False,  # SequentialSampler
-        num_workers=20,
+        num_workers=10,
         pin_memory=True,
     )
 
@@ -114,7 +116,7 @@ def objective(learning_params: dict) -> float:
         val_dataset,
         batch_size=learning_params["batch_size"],
         shuffle=True,
-        num_workers=20,
+        num_workers=10,
         pin_memory=True,
     )
 
@@ -122,12 +124,9 @@ def objective(learning_params: dict) -> float:
     # Use a GPU if available
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    # Instantiate a model
-    model = GoogleNetBN(
-        nb_classes=params.inceptionv2_cifar.NB_CLASSES,
-        inception_factor=params.inceptionv2_cifar.INCEPTION_FACTOR)\
-            .to(device=device)
-
+    # Move the model to the device
+    model.to(device)
+    
     # Define the loss function (combines nn.LogSoftmax() and nn.NLLLoss())
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -211,7 +210,7 @@ def objective(learning_params: dict) -> float:
         model=model,
         accuracy_values=accuracy_values)
     
-    return best_val_accuracy
+    return best_val_accuracy, model
 
 
 def objective_wrapper(trial: optuna.Trial) -> float:
@@ -241,10 +240,55 @@ def objective_wrapper(trial: optuna.Trial) -> float:
     # estimate of the objective function
     intermediate_accuracies = []
     
-    for i in range(params.inceptionv2_cifar.NB_SEEDS):
+    for _ in range(params.inceptionv2_cifar.NB_SEEDS):
         
-        # Run the objective function
-        intermediate_accuracies.append(objective(LEARNING_PARAMS))
+        # Optimize the hyperparameters of the student model
+        if params.inceptionv2_cifar.OPTIMIZE_STUDENT:
+            
+            # Instantiate a teacher model
+            model = GoogleNetBN(
+                nb_classes=params.inceptionv2_cifar.NB_CLASSES,
+                inception_factor=params.inceptionv2_cifar.INCEPTION_FACTOR)
+            
+            # If we optimize the student model, the learning rate of the
+            # teacher model should have been optimized before
+            LEARNING_PARAMS_TEACHER = LEARNING_PARAMS.copy()
+            LEARNING_PARAMS_TEACHER.update(
+                {"learning_rate": params.inceptionv2_cifar.LR_TEACHER})
+            
+            # Train the teacher model
+            _, model = objective(LEARNING_PARAMS_TEACHER, model)
+            
+            # Instantiate a Net2Net object from a (pre-trained) model
+            my_net2net = net2net.net2net_wider.Net2Net(teacher_network=model)
+
+            # Apply the Net2Net widening operations and get the student network
+            my_net2net.net2wider(
+                wider_operations=params.inceptionv2_cifar.wider_operations,
+                sigma=params.inceptionv2_cifar.SIGMA,
+                random_pad=params.inceptionv2_cifar.RANDOM_PAD)
+            student_model = my_net2net.get_student_network()
+            
+            # Train the student model
+            intermediate_accuracy, _ = objective(LEARNING_PARAMS,
+                                                 student_model)
+
+            # Run the objective function
+            intermediate_accuracies.append(intermediate_accuracy)
+        
+        # Optimize the hyperparameters of the teacher model
+        else:
+            # Instantiate a model
+            model = GoogleNetBN(
+                nb_classes=params.inceptionv2_cifar.NB_CLASSES,
+                inception_factor=params.inceptionv2_cifar.INCEPTION_FACTOR)
+
+            # Train the model
+            intermediate_accuracy, _ = objective(LEARNING_PARAMS, model)
+            
+            # Run the objective function
+            intermediate_accuracies.append(intermediate_accuracy)
+    
     
     # Aggregate the intermediate accuracies
     accuracy = np.mean(intermediate_accuracies)

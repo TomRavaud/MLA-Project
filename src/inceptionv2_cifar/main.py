@@ -13,7 +13,7 @@ import utils.log
 import utils.train
 import utils.test
 import utils.validate
-from inceptionv2 import GoogleNetBN
+from models.inceptionv2 import GoogleNetBN
 
 
 # Loading the training parameters

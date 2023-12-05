@@ -47,19 +47,68 @@ class Net2Net:
         # Initialize the student network with the teacher network
         self.student_network = copy.deepcopy(teacher_network)
         
+        # Get the device on which the model is located
+        self.device = next(teacher_network.parameters()).device
+        
+        # Be sure the model is on the CPU (GPU does not offer a speed-up for
+        # the Net2Net algorithm)
+        if self.device != "cpu":
+            self.student_network.to("cpu")
+        
         # Define the dictionary that will contain the modified weights and
         # biases of the student network
         self.modified_state_dict = {}
-
+    
+    
+    def get_student_network(self) -> nn.Module:
+        """Return (a copy of) the student network located on the device on
+        which the teacher network is located
+        
+        Returns:
+            nn.Module: The student network
+        """
+        return copy.deepcopy(self.student_network).to(self.device)
+    
     
     def net2wider(self,
-                  target_conv_layers: list,
-                  next_layers: list,
-                  width: list,
-                  batch_norm_layers: list = [None],
+                  wider_operations: dict,
                   sigma: float = 0.001,
                   random_pad: bool = False):
-        """Widen convolutional layers of a neural networks
+        """Widen convolutional layers of a neural network (multiple operations)
+
+        Args:
+            wider_operations (dict): Dictionary of the widening operations
+            sigma (float, optional): Standard deviation of the noise added to
+            the weights and biases of the supplementary filters.
+            Defaults to 0.001.
+        """
+        
+        # Go through the list of widening operations
+        for key in wider_operations.keys():
+        
+            # Get the parameters of the wider operation
+            target_conv_layers = wider_operations[key]["target_conv_layers"]
+            next_layers = wider_operations[key]["next_layers"]
+            new_width = wider_operations[key]["width"]
+            batch_norm_layers = wider_operations[key]["batch_norm_layers"]
+
+            # Widen a layer of the network
+            self.net2wider_operation(target_conv_layers=target_conv_layers,
+                                     next_layers=next_layers,
+                                     width=new_width,
+                                     batch_norm_layers=batch_norm_layers,
+                                     sigma=sigma,
+                                     random_pad=random_pad)
+        
+
+    def net2wider_operation(self,
+                            target_conv_layers: list,
+                            next_layers: list,
+                            width: list,
+                            batch_norm_layers: list = [None],
+                            sigma: float = 0.001,
+                            random_pad: bool = False):
+        """Widen convolutional layers of a neural network (single operation)
 
         Args:
             target_conv_layers (list): Convolutional layers to be widened (if
@@ -620,11 +669,11 @@ if __name__ == '__main__':
         net2net = Net2Net(teacher_network=model)
 
         # Widen the network
-        net2net.net2wider(target_conv_layers=target_conv_layers,
-                          next_layers=next_layers,
-                          width=width,
-                          batch_norm_layers=batch_norm_layers,
-                          sigma=0.)
+        net2net.net2wider_operation(target_conv_layers=target_conv_layers,
+                                    next_layers=next_layers,
+                                    width=width,
+                                    batch_norm_layers=batch_norm_layers,
+                                    sigma=0.)
 
         # Create a dummy input
         x = torch.randn((1, 1, 32, 32))
@@ -633,7 +682,8 @@ if __name__ == '__main__':
         y_teacher = model(x)
 
         # Compute the output of the student network
-        y_student = net2net.student_network(x)
+        student_model = net2net.get_student_network()
+        y_student = student_model(x)
 
         # The outputs should be the same
         print(f"Test ({model.__class__.__name__}): The outputs of the teacher"

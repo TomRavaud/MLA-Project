@@ -3,6 +3,9 @@ scikit-learn
 tabulate
 tqdm
 torchinfo
+optuna
+optuna-dashboard
 -e src/params
 -e src/utils
 -e src/net2net
+-e src/models
