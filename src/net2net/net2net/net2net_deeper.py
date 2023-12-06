@@ -71,23 +71,33 @@ class LeNetWithoutBN(nn.Module):
 
 
 def add_module(model: nn.Module,
-                   target_module_name: str,
-                   new_module: nn.Module):
+                   target_module_name: str):
     # Get the original convolutional layer from the model
-    original_layer = getattr(model, target_module_name)
+    #original_layer = getattr(model, target_module_name)
 
     # Split the original convolutional layer
     # Divide the module name into its components
     module_path = target_module_name.split('.')
+    print(module_path)
+    current_module = getattr(model, module_path[0])
+
     
     # If the module is at the top level
     if len(module_path) == 1:
+        for name, module in model.named_modules():
+            setattr()
         # Replace the original layer in the model
-        setattr(model, target_module_name + "_copied", original_layer)
-        setattr(model, target_module_name + "_identity", new_module)
+        new_module = nn.Conv2d(in_channels=current_module.in_channels,
+                            out_channels=current_module.out_channels,
+                            kernel_size=current_module.kernel_size,
+                            stride=current_module.stride,
+                            padding=current_module.padding)
+        setattr(model, str(int(target_module_name) + 1), new_module)
+
+
 
         # Remove the original layer from the model
-        delattr(model, target_module_name)
+        #delattr(model, target_module_name)
 
     else:
         # Get the current module
@@ -95,7 +105,7 @@ def add_module(model: nn.Module,
         current_module = getattr(model, current_module_name)
         
         # Recursively replace the module
-        add_module(current_module, '.'.join(module_path[1:]), new_module)
+        add_module(current_module, '.'.join(module_path[1:]))
 
 
 class Net2Net:
@@ -125,17 +135,18 @@ class Net2Net:
 
             for name, module in self.student_network.named_modules():
 
-                if name == target_layer and isinstance(module, nn.Conv2d):
+                if name == target_layer :
                     # Assuming you want to double the number of output channels
+                    """
                     new_module = nn.Conv2d(
                         in_channels=module.in_channels,
                         out_channels=module.out_channels,
                         kernel_size=module.kernel_size,
                         stride=module.stride,
-                        padding=module.padding)
+                        padding=module.padding)"""
                     add_module(new_student_network,
-                                   name,
-                                   new_module)
+                                   name)
+                    print(new_student_network)
 
             # Get the parameters of the target layer
 
@@ -153,7 +164,7 @@ if __name__ == '__main__':
     net2net = Net2Net(teacher_network=model2)
     
     # Set a layer to be deepen
-    target_layer = "layer1"
+    target_layer = "layer1.0"
     
     # Depen a layer of the network
     net2net.net2deeper(target_layer=target_layer)
@@ -166,6 +177,8 @@ if __name__ == '__main__':
     
     # Compute the output of the student network
     y_student = net2net.student_network(x)
+    #print(model2)
+    #print(net2net.student_network)
     
     # The outputs should be the same
     print("TEST2 (LeNetWithoutBN): The outputs of the teacher and student networks should be the same.")
