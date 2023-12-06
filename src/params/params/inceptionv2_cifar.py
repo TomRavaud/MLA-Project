@@ -13,6 +13,9 @@ DATASET_NAME = "CIFAR-10"
 # Path to the dedicated directory
 PATH = "src/inceptionv2_cifar/"
 
+# Study name
+STUDY_NAME = "test"
+
 
 ###############################################
 ## Architecture parameters (teacher network) ##
@@ -37,16 +40,28 @@ LEARNING = {"batch_size": 128,
             "momentum": 0.9  # Only used for SGD
             }
 
-# Set the learning rate that has been optimized for the teacher network
+# Learning rate that has been optimized for the teacher network
 LR_TEACHER = 0.0015  # inception factor = sqrt(0.3)
 
 # Learning rate that has been optimized on the random initialization baseline
 LR_RANDOM_INITIALIZATION = 0.002
 
+# Learning rate that has been optimized on Net2WiderNet
+LR_NET2WIDERNET = 5e-5
 
-####################################
+# Learning rate that has been optimized on the random pad baseline
+LR_RANDOM_PAD = 2e-4
+
+# Number of random seeds to use to train the network
+NB_SEEDS = 3
+
+# Whether to train the student network or the teacher network
+TRAIN_STUDENT = True
+
+
+###################################
 ## Images' transforms parameters ##
-####################################
+###################################
 
 # Shape of the images in the ImageNet dataset
 IMAGE_SHAPE = (33, 33)
@@ -62,9 +77,6 @@ NORMALIZE_PARAMS = {"mean": (0.4914, 0.4822, 0.4465),
 ## Optuna ##
 ############
 
-# Study name
-STUDY_NAME = "test_student"
-
 # Study database storage path
 STUDY_DB_PATH =\
     f"sqlite:///src/inceptionv2_cifar/logs/{STUDY_NAME}/{STUDY_NAME}.db"
@@ -76,14 +88,14 @@ OPTIMIZE_STUDENT = True
 NB_TRIALS = 3
 
 # Number of seeds to test for each trial (in order to get more robust results)
-NB_SEEDS = 3
+NB_SEEDS_OPTUNA = 3
 
 # Learning rate search space
 LR_RANGE = (1e-5, 1e-2)
 
 # Number of epochs to wait before stopping the training if the validation
 # accuracy does not improve
-PATIENCE = 10
+PATIENCE = 5
 
 
 ##################
@@ -94,7 +106,7 @@ PATIENCE = 10
 SIGMA = 0.001
 
 # Use the baseline method (random pad) instead of Net2WiderNet
-RANDOM_PAD = False
+RANDOM_PAD = True
 
 # Define the parameters of the Net2WiderNet algorithm for each call
 # (there are three calls per Inception block)
