@@ -240,7 +240,7 @@ def objective_wrapper(trial: optuna.Trial) -> float:
     # estimate of the objective function
     intermediate_accuracies = []
     
-    for _ in range(params.inceptionv2_cifar.NB_SEEDS):
+    for _ in range(params.inceptionv2_cifar.NB_SEEDS_OPTUNA):
         
         # Optimize the hyperparameters of the student model
         if params.inceptionv2_cifar.OPTIMIZE_STUDENT:
