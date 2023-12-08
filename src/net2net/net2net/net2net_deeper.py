@@ -84,15 +84,28 @@ def add_module(model: nn.Module,
     
     # If the module is at the top level
     if len(module_path) == 1:
+        listaftermodulename  = []
         for name, module in model.named_modules():
-            setattr()
-        # Replace the original layer in the model
+            print(name)
+            print(module)
+            if name == module_path[0] or len(listaftermodulename)!=0:
+                listaftermodulename.append([name,module])
+                
         new_module = nn.Conv2d(in_channels=current_module.in_channels,
                             out_channels=current_module.out_channels,
                             kernel_size=current_module.kernel_size,
                             stride=current_module.stride,
                             padding=current_module.padding)
-        setattr(model, str(int(target_module_name) + 1), new_module)
+
+        setattr(model, str(int(target_module_name) + 2), new_module)
+        setattr(model, str(int(target_module_name) + 3), nn.ReLU())
+        if len(listaftermodulename)>2:
+            for i in range(1,len(listaftermodulename)-1):
+                setattr(model, str(int(listaftermodulename[-i][0]) + 2), listaftermodulename[-i][1])
+
+
+
+
 
 
 
