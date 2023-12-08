@@ -29,12 +29,12 @@ class LeNetWithoutBN(nn.Module):
         # Define the components of the network
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 6, kernel_size=5, stride=1, padding=0),
-            # nn.BatchNorm2d(6),
+            nn.BatchNorm2d(6),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer2 = nn.Sequential(
             nn.Conv2d(6, 16, kernel_size=5, stride=1, padding=0),
-            # nn.BatchNorm2d(16),
+            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
         
@@ -90,18 +90,38 @@ def add_module(model: nn.Module,
             print(module)
             if name == module_path[0] or len(listaftermodulename)!=0:
                 listaftermodulename.append([name,module])
-                
+        
         new_module = nn.Conv2d(in_channels=current_module.in_channels,
                             out_channels=current_module.out_channels,
                             kernel_size=current_module.kernel_size,
                             stride=current_module.stride,
                             padding=current_module.padding)
+        
+        weight = new_module.weight
+        deeper_w = np.zeros((weight.shape[0], weight.shape[1], weight.shape[3], weight.shape[3]))
+        #assert weight.shape[0] % 2 == 1 and weight.shape[1]% 2 ==1, 'Kernel size should be odd'
+        center_h = (weight.shape[0]-1)//2
+        center_w = (weight.shape[1]-1)//2
+        for i in range(weight.shape[3]):
+            tmp = np.zeros((weight.shape[0], weight.shape[1], weight.shape[3]))
+            tmp[center_h, center_w, i] = 1
+            deeper_w[:, :, :, i] = 1
+        deeper_b = np.zeros(weight.shape[3])
 
-        setattr(model, str(int(target_module_name) + 2), new_module)
-        setattr(model, str(int(target_module_name) + 3), nn.ReLU())
-        if len(listaftermodulename)>2:
-            for i in range(1,len(listaftermodulename)-1):
-                setattr(model, str(int(listaftermodulename[-i][0]) + 2), listaftermodulename[-i][1])
+        new_module.modified_state_dict = {}
+
+        new_module.modified_state_dict["new_module" + ".weight"] = deeper_w
+        new_module.modified_state_dict["new_module" + ".bias"] = deeper_b
+        new_module.load_state_dict(new_module.modified_state_dict,strict=False)
+        
+        
+        setattr(model, str(int(target_module_name) + 3), new_module)
+        setattr(model, str(int(target_module_name) + 4), nn.BatchNorm2d(current_module.out_channels))
+        setattr(model, str(int(target_module_name) + 5), nn.ReLU())
+        
+        if len(listaftermodulename)>3:
+            for i in range(1,len(listaftermodulename)-2):
+                setattr(model, str(int(listaftermodulename[-i][0]) + 3), listaftermodulename[-i][1])
 
 
 
