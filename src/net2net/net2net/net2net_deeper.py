@@ -7,6 +7,7 @@ import torch.nn as nn
 import numpy as np
 import copy
 import utils
+import utils.train
 import torchvision
 import torchvision.transforms as transforms
 from sklearn.model_selection import train_test_split
@@ -92,184 +93,11 @@ def add_modules(model: nn.Module,
                     new_conv, new_bn)
 
 
-# Create a network model_1_epoch, a copy of a network model and do 1 epoch of training on this model
-def train_1_epoch(model, dataset_used):
-
-    #make a copy of the model
-    model_1_epoch = copy.deepcopy(model)
-
-    if dataset_used == "CIFAR10":
-        learning_params = params.inceptionv2_cifar.LEARNING
-    
-            # Compose several transforms together to be applied to data
-        # (Note that transforms are not applied yet)
-        transform = transforms.Compose([
-            # Modify the size of the images
-            transforms.Resize(params.inceptionv2_cifar.IMAGE_SHAPE),
-
-            # Convert a PIL Image or numpy.ndarray to tensor
-            transforms.ToTensor(),
-
-            # Normalize a tensor image with pre-computed mean and standard
-            # deviation (based on the data used to train the model(s))
-            # (be careful, it only works on torch.*Tensor)
-            transforms.Normalize(**params.inceptionv2_cifar.NORMALIZE_PARAMS),
-        ])
-
-
-        # Load the train dataset
-        train_dataset = torchvision.datasets.CIFAR10(
-            root=params.inceptionv2_cifar.PATH,
-            train=True,
-            transform=transform,
-            download=True,
-        )
-
-        # Load the test dataset
-        test_dataset=torchvision.datasets.CIFAR10(
-            root=params.inceptionv2_cifar.PATH,
-            train=False,
-            transform=transform,
-            download=True,
-        )
-
-
-    elif dataset_used == "MNIST":
-        learning_params = params.lenet_mnist.LEARNING
-    
-            # Compose several transforms together to be applied to data
-        # (Note that transforms are not applied yet)
-        transform = transforms.Compose([
-            # Modify the size of the images
-            transforms.Resize(params.lenet_mnist.IMAGE_SHAPE),
-
-            # Convert a PIL Image or numpy.ndarray to tensor
-            transforms.ToTensor(),
-
-            # Normalize a tensor image with pre-computed mean and standard
-            # deviation (based on the data used to train the model(s))
-            # (be careful, it only works on torch.*Tensor)
-            transforms.Normalize(**params.lenet_mnist.NORMALIZE_PARAMS),
-        ])
-
-
-        # Load the train dataset
-        train_dataset = torchvision.datasets.MNIST(
-            root=params.lenet_mnist.PATH,
-            train=True,
-            transform=transform,
-            download=True,
-        )
-
-        # Load the test dataset
-        test_dataset=torchvision.datasets.MNIST(
-            root=params.lenet_mnist.PATH,
-            train=False,
-            transform=transform,
-            download=True,
-        )
-
-    elif dataset_used == "IMAGENET":
-        learning_params = params.inceptionv2_imagenet.LEARNING
-    
-            # Compose several transforms together to be applied to data
-        # (Note that transforms are not applied yet)
-        transform = transforms.Compose([
-            # Modify the size of the images
-            transforms.Resize(params.inceptionv2_imagenet.IMAGE_SHAPE),
-
-            # Convert a PIL Image or numpy.ndarray to tensor
-            transforms.ToTensor(),
-
-            # Normalize a tensor image with pre-computed mean and standard
-            # deviation (based on the data used to train the model(s))
-            # (be careful, it only works on torch.*Tensor)
-            transforms.Normalize(**params.inceptionv2_imagenet.NORMALIZE_PARAMS),
-        ])
-
-
-        # Load the train dataset
-        train_dataset = torchvision.datasets.IMAGENET(
-            root=params.inceptionv2_imagenet.PATH,
-            train=True,
-            transform=transform,
-            download=True,
-        )
-
-        # Load the test dataset
-        test_dataset=torchvision.datasets.IMAGENET(
-            root=params.inceptionv2_imagenet.PATH,
-            train=False,
-            transform=transform,
-            download=True,
-        )
-
-    else :
-        print("dataset unknown")
-        
-
-    # As CIFAR-10 does not provide a validation dataset, we will split the
-    # train dataset into a train and a validation dataset
-
-    # Start by loading the train dataset, with the same transform as the
-    # test dataset
-
-
-    # Set the train dataset size as a percentage of the original train dataset
-    train_size = (len(train_dataset) - len(test_dataset))/len(train_dataset)
-
-    # Splits train data indices into train and validation data indices
-    train_indices, _ = train_test_split(range(len(train_dataset)),
-                                                train_size=train_size)
-
-    # Extract the corresponding subsets of the train dataset
-    train_dataset = torch.utils.data.Subset(train_dataset, train_indices)
-
-
-
-    # Combine a dataset and a sampler, and provide an iterable over the dataset
-    # (setting shuffle argument to True calls a RandomSampler, and avoids to
-    # have to create a Sampler object)
-    train_loader = torch.utils.data.DataLoader(
-        dataset = train_dataset,
-        batch_size = learning_params['batch_size'],
-        shuffle = True,
-        num_workers=10,  # Asynchronous data loading and augmentation
-        pin_memory=True,  # Increase the transferring speed to the GPU
-    )
-
-
-    # Use a GPU if available
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Device: {device}\n")
-    
-    # Move the model to the device
-    model.to(device)
-
-    # Define the loss function (combines nn.LogSoftmax() and nn.NLLLoss())
-    criterion = torch.nn.CrossEntropyLoss()
-
-    # Set the optimizer
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=learning_params["learning_rate"],
-        weight_decay=learning_params["weight_decay"])
-
-    
-    # train one epoch of the model
-    utils.train.train(model_1_epoch,
-                            device,
-                            train_loader,
-                            optimizer,
-                            criterion,
-                            0)
-    return model_1_epoch
-
 
 
 class Net2Net:
     
-    def __init__(self, teacher_network: nn.Module):
+    def __init__(self, teacher_network: nn.Module, dataset_used: str):
         """Constructor of the class
 
         Args:
@@ -277,9 +105,188 @@ class Net2Net:
         """
         # Initialize the student network with the teacher network
         self.student_network = copy.deepcopy(teacher_network)
+        if dataset_used == "CIFAR10":
+            self.learning_params = params.inceptionv2_cifar.LEARNING
+            #define the batchnorm to change
+            self.batch_param = params.inceptionv2_cifar.deeper_batchnorm
+
+                # Compose several transforms together to be applied to data
+            # (Note that transforms are not applied yet)
+            transform = transforms.Compose([
+                # Modify the size of the images
+                transforms.Resize(params.inceptionv2_cifar.IMAGE_SHAPE),
+
+                # Convert a PIL Image or numpy.ndarray to tensor
+                transforms.ToTensor(),
+
+                # Normalize a tensor image with pre-computed mean and standard
+                # deviation (based on the data used to train the model(s))
+                # (be careful, it only works on torch.*Tensor)
+                transforms.Normalize(**params.inceptionv2_cifar.NORMALIZE_PARAMS),
+            ])
+
+
+            # Load the train dataset
+            self.train_dataset = torchvision.datasets.CIFAR10(
+                root=params.inceptionv2_cifar.PATH,
+                train=True,
+                transform=transform,
+                download=True,
+            )
+
+            # Load the test dataset
+            self.test_dataset=torchvision.datasets.CIFAR10(
+                root=params.inceptionv2_cifar.PATH,
+                train=False,
+                transform=transform,
+                download=True,
+            )
+
+
+        elif dataset_used == "MNIST":
+            #define the learning parameters 
+            self.learning_params = params.lenet_mnist.LEARNING
+            #define the batchnorm to change
+            self.batch_param = params.lenet_mnist.deeper_batchnorm
+        
+                # Compose several transforms together to be applied to data
+            # (Note that transforms are not applied yet)
+            transform = transforms.Compose([
+                # Modify the size of the images
+                transforms.Resize(params.lenet_mnist.IMAGE_SHAPE),
+
+                # Convert a PIL Image or numpy.ndarray to tensor
+                transforms.ToTensor(),
+
+                # Normalize a tensor image with pre-computed mean and standard
+                # deviation (based on the data used to train the model(s))
+                # (be careful, it only works on torch.*Tensor)
+                transforms.Normalize(**params.lenet_mnist.NORMALIZE_PARAMS),
+            ])
+
+
+            # Load the train dataset
+            self.train_dataset = torchvision.datasets.MNIST(
+                root = '.',
+                train = True,
+                transform = transform,
+                download = True,
+            )
+
+            # Load the test dataset
+            self.test_dataset = torchvision.datasets.MNIST(
+                root = '.',
+                train = False,
+                transform = transform,
+                download=True,
+            )
+
+        elif dataset_used == "IMAGENET":
+            self.learning_params = params.inceptionv2_imagenet.LEARNING
+            #define the batchnorm to change
+            self.batch_param = params.inceptionv2_imagenet.deeper_batchnorm
+
+                # Compose several transforms together to be applied to data
+            # (Note that transforms are not applied yet)
+            transform = transforms.Compose([
+                # Modify the size of the images
+                transforms.Resize(params.inceptionv2_imagenet.IMAGE_SHAPE),
+
+                # Convert a PIL Image or numpy.ndarray to tensor
+                transforms.ToTensor(),
+
+                # Normalize a tensor image with pre-computed mean and standard
+                # deviation (based on the data used to train the model(s))
+                # (be careful, it only works on torch.*Tensor)
+                transforms.Normalize(**params.inceptionv2_imagenet.NORMALIZE_PARAMS),
+            ])
+
+
+            # Load the train dataset
+            self.train_dataset = torchvision.datasets.IMAGENET(
+                root=params.inceptionv2_imagenet.PATH,
+                train=True,
+                transform=transform,
+                download=True,
+            )
+
+            # Load the test dataset
+            self.test_dataset=torchvision.datasets.IMAGENET(
+                root=params.inceptionv2_imagenet.PATH,
+                train=False,
+                transform=transform,
+                download=True,
+            )
+
+        else :
+            print("dataset unknown")
+
+    # Create a network model_1_epoch, a copy of a network model and do 1 epoch of training on this model
+    def train_1_epoch(self, model):
+
+        #make a copy of the model
+        model_1_epoch = copy.deepcopy(model)
+        
+        # As CIFAR-10 does not provide a validation dataset, we will split the
+        # train dataset into a train and a validation dataset
+
+        # Start by loading the train dataset, with the same transform as the
+        # test dataset
+
+        # Use a GPU if available
+        device = "cpu" #if torch.cuda.is_available() else "cpu"
+        print(f"Device: {device}\n")
+        
+
+        # Set the train dataset size as a percentage of the original train dataset
+        train_size = (len(self.train_dataset) - len(self.test_dataset))/len(self.train_dataset)
+
+        # Splits train data indices into train and validation data indices
+        train_indices, _ = train_test_split(range(len(self.train_dataset)),
+                                                    train_size=train_size)
+
+        # Extract the corresponding subsets of the train dataset
+        train_dataset = torch.utils.data.Subset(self.train_dataset, train_indices)
+
+
+
+        # Combine a dataset and a sampler, and provide an iterable over the dataset
+        # (setting shuffle argument to True calls a RandomSampler, and avoids to
+        # have to create a Sampler object)
+        train_loader = torch.utils.data.DataLoader(
+            dataset = train_dataset,
+            batch_size = self.learning_params['batch_size'],
+            shuffle = True,
+            num_workers=10,  # Asynchronous data loading and augmentation
+            pin_memory=True,  # Increase the transferring speed to the GPU
+        )
+
+
+
+        # Move the model to the device
+        model.to(device)
+
+        # Define the loss function (combines nn.LogSoftmax() and nn.NLLLoss())
+        criterion = torch.nn.CrossEntropyLoss()
+
+        # Set the optimizer
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr= self.learning_params["learning_rate"],
+            weight_decay= self.learning_params["weight_decay"])
+
+        
+        # train one epoch of the model
+        utils.train.train(model_1_epoch,
+                                device,
+                                train_loader,
+                                optimizer,
+                                criterion,
+                                0)
+        return model_1_epoch
 
         # Initialize batch norms of the deepen network with 
-    def set_deepen_batchnorm(model,model_1_epoch):
+    def set_deepen_batchnorm(self,model,model_1_epoch,target_conv_layer):
         """
         Args:
             model (nn.Module): The neural network with the batch norm to update
@@ -294,7 +301,7 @@ class Net2Net:
             for name, layer in model_1_epoch.named_children():
                 
                 if isinstance(layer, nn.BatchNorm2d):
-                    if name in params.lenet_mnist.deeper_batchnorm :
+                    if name == self.batch_param[target_conv_layer] :
                         # Add running mean and running std in the dictionnary of modifications
                         modified_state_dict[name + '.bias'] = layer.running_mean
                         modified_state_dict[name + '.weight'] = layer.running_var
@@ -304,7 +311,7 @@ class Net2Net:
                         if isinstance(layer_inside, nn.BatchNorm2d):
                             # Create the name of the current layer
                             name_inside = ".".join([name,name_inside])
-                            if name_inside in params.lenet_mnist.deeper_batchnorm :
+                            if name_inside == self.batch_param[target_conv_layer]:
                                 # Add running mean and running std in the dictionnary of modifications
                                 #modifier gamma, beta : weights, bias
                                 modified_state_dict[name_inside + '.bias'] = layer_inside.running_mean #bias
@@ -327,16 +334,15 @@ class Net2Net:
         
             # Get the parameters of the deeper operation
             target_conv_layers = deeper_operations[key]["target_conv_layers"]
-            dataset_used = deeper_operations[key]["dataset"]
     
             # Deepen a layer of the network
-            self.net2deeper_operation(target_conv_layers,dataset_used)
+            self.net2deeper_operation(target_conv_layers)
 
         return
     
 
 
-    def net2deeper_operation(self, previous_conv: str, dataset: str):
+    def net2deeper_operation(self, previous_conv: str):
         """Deepen a layer of a neural network by adding a convolutional layer
         followed by a batch normalization layer and a ReLU activation.
 
@@ -408,9 +414,9 @@ class Net2Net:
         add_modules(self.student_network, previous_conv, new_conv, new_bn)
 
     
-        model_1_epoch = train_1_epoch(self.student_network,dataset_used)
+        model_1_epoch = Net2Net.train_1_epoch(self,self.student_network)
 
-        self.set_deepen_batchnorm(model,model_1_epoch)
+        self.set_deepen_batchnorm(self.student_network, model_1_epoch, previous_conv)
 
 
         
@@ -422,7 +428,7 @@ if __name__ == '__main__':
     model = LeNet(nb_classes=10)
     
     # Instantiate a Net2Net object from a (pre-trained) model
-    net2net = Net2Net(teacher_network=model)
+    net2net = Net2Net(teacher_network=model,dataset_used="MNIST")
     
     
     # Set the convolutional layer to copy in order to deepen the network
