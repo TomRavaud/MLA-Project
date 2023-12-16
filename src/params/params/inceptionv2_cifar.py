@@ -97,7 +97,10 @@ LR_RANGE = (1e-5, 1e-2)
 # accuracy does not improve
 PATIENCE = 5
 
-
+###################
+## Net2DeeperNet ##
+###################
+deeper_batchnorm = {}
 ##################
 ## Net2WiderNet ##
 ##################

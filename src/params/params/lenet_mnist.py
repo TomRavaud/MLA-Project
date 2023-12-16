@@ -30,3 +30,9 @@ NB_CHANNELS = 1
 # (pre-computed on the MNIST dataset)
 NORMALIZE_PARAMS = {"mean": (0.1307,),
                     "std": (0.3105,)}
+
+###################
+## Net2DeeperNet ##
+###################
+deeper_batchnorm ={"layer1.0": "layer1.4", "layer2.0": "layer2.4"}
+

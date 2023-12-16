@@ -286,39 +286,39 @@ class Net2Net:
         return model_1_epoch
 
         # Initialize batch norms of the deepen network with 
-    def set_deepen_batchnorm(self,model,model_1_epoch,target_conv_layer):
+    def set_deepen_batchnorm(self,model,model_1_epoch,targets_conv_layer):
         """
         Args:
             model (nn.Module): The neural network with the batch norm to update
             added_batchnorm: dictionnary of added batch norm
         """
-    
-        with torch.no_grad():
-            # create a dictionnary of modifications
-            modified_state_dict = {}
+        for layer_to_deeper in targets_conv_layer :
+            with torch.no_grad():
+                # create a dictionnary of modifications
+                modified_state_dict = {}
 
-            # Search the batch norm modules in the network
-            for name, layer in model_1_epoch.named_children():
+                # Search the batch norm modules in the network
+                for name, layer in model_1_epoch.named_children():
+                    
+                    if isinstance(layer, nn.BatchNorm2d):
+                        if name == self.batch_param[layer_to_deeper] :
+                            # Add running mean and running std in the dictionnary of modifications
+                            modified_state_dict[name + '.bias'] = layer.running_mean
+                            modified_state_dict[name + '.weight'] = layer.running_var
+
+                    if isinstance(layer, nn.Sequential):
+                        for name_inside, layer_inside in layer.named_children():
+                            if isinstance(layer_inside, nn.BatchNorm2d):
+                                # Create the name of the current layer
+                                name_inside = ".".join([name,name_inside])
+                                if name_inside == self.batch_param[layer_to_deeper]:
+                                    # Add running mean and running std in the dictionnary of modifications
+                                    #modifier gamma, beta : weights, bias
+                                    modified_state_dict[name_inside + '.bias'] = layer_inside.running_mean #bias
+                                    modified_state_dict[name_inside + '.weight'] = layer_inside.running_var #weight
                 
-                if isinstance(layer, nn.BatchNorm2d):
-                    if name == self.batch_param[target_conv_layer] :
-                        # Add running mean and running std in the dictionnary of modifications
-                        modified_state_dict[name + '.bias'] = layer.running_mean
-                        modified_state_dict[name + '.weight'] = layer.running_var
-
-                if isinstance(layer, nn.Sequential):
-                    for name_inside, layer_inside in layer.named_children():
-                        if isinstance(layer_inside, nn.BatchNorm2d):
-                            # Create the name of the current layer
-                            name_inside = ".".join([name,name_inside])
-                            if name_inside == self.batch_param[target_conv_layer]:
-                                # Add running mean and running std in the dictionnary of modifications
-                                #modifier gamma, beta : weights, bias
-                                modified_state_dict[name_inside + '.bias'] = layer_inside.running_mean #bias
-                                modified_state_dict[name_inside + '.weight'] = layer_inside.running_var #weight
-            
-            # load the modification in the model
-            model.load_state_dict(modified_state_dict,strict=False)
+                # load the modification in the model
+                model.load_state_dict(modified_state_dict,strict=False)
         return
 
     def net2deeper(self,
@@ -356,62 +356,62 @@ class Net2Net:
             NotImplementedError: If the stride of the convolutional layer is
             different from 1
         """
-        
-        # Go through the modules of the network
-        for name, module in self.student_network.named_modules():
+        for layer_to_deeper in previous_conv:
+            # Go through the modules of the network
+            for name, module in self.student_network.named_modules():
+                
+                # Check if the current module is the one to be copied
+                if name == layer_to_deeper:
+                    
+                    # Create a new module, ie copy the current convolutional layer
+                    # (the number of input channels must match the number of output
+                    # channels of the previous convolutional layer !)
+                    # (with some padding to keep the size of the feature maps 
+                    # unchanged, assuming the stride is 1)
+                    if module.stride == (1, 1):
+                        new_conv = nn.Conv2d(module.out_channels,
+                                            module.out_channels,
+                                            kernel_size=module.kernel_size,
+                                            stride=1,
+                                            padding=((module.kernel_size[0]-1)//2,
+                                                    (module.kernel_size[1]-1)//2))
+                    else:
+                        raise NotImplementedError(
+                            "Convolutional layers with stride different from 1"
+                            "are not implemented yet.")
+                    
+                    # Create a new batch normalization layer
+                    new_bn = nn.BatchNorm2d(module.out_channels)
+                    
+                    break
+                
+            # Initialize the weights and bias of the new convolutional layer to be
+            # an identity function and a zero vector, respectively
+            new_weights = np.zeros_like(new_conv.weight.data)
             
-            # Check if the current module is the one to be copied
-            if name == previous_conv:
-                
-                # Create a new module, ie copy the current convolutional layer
-                # (the number of input channels must match the number of output
-                # channels of the previous convolutional layer !)
-                # (with some padding to keep the size of the feature maps 
-                # unchanged, assuming the stride is 1)
-                if module.stride == (1, 1):
-                    new_conv = nn.Conv2d(module.out_channels,
-                                         module.out_channels,
-                                         kernel_size=module.kernel_size,
-                                         stride=1,
-                                         padding=((module.kernel_size[0]-1)//2,
-                                                  (module.kernel_size[1]-1)//2))
-                else:
-                    raise NotImplementedError(
-                        "Convolutional layers with stride different from 1"
-                        "are not implemented yet.")
-                
-                # Create a new batch normalization layer
-                new_bn = nn.BatchNorm2d(module.out_channels)
-                
-                break
+            # Put a 1 in the center of each convolutional kernel
+            for i in range(new_weights.shape[0]):
+                for j in range(new_weights.shape[1]):
+                    new_weights[i,
+                                j,
+                                new_weights.shape[2]//2,
+                                new_weights.shape[3]//2] = 1
             
-        # Initialize the weights and bias of the new convolutional layer to be
-        # an identity function and a zero vector, respectively
-        new_weights = np.zeros_like(new_conv.weight.data)
-        
-        # Put a 1 in the center of each convolutional kernel
-        for i in range(new_weights.shape[0]):
-            for j in range(new_weights.shape[1]):
-                new_weights[i,
-                            j,
-                            new_weights.shape[2]//2,
-                            new_weights.shape[3]//2] = 1
-        
-        # Initialize the bias to zero
-        new_bias = np.zeros_like(new_conv.bias.data)
-        
-        # Load the weights and bias of the new convolutional layer
-        new_conv.weight.data = torch.from_numpy(new_weights)
-        new_conv.bias.data = torch.from_numpy(new_bias)
-        
-        # TODO: Initialize the weights and bias of the new batch normalization
-        print("The weights and bias of the new batch normalization layer are"
-              "not initialized yet. To be implemented.")
-        
-        # Add the new modules (ie {convolutional layer + batch normalization
-        # layer + ReLU activation}) to the network after the previous
-        # convolutional layer
-        add_modules(self.student_network, previous_conv, new_conv, new_bn)
+            # Initialize the bias to zero
+            new_bias = np.zeros_like(new_conv.bias.data)
+            
+            # Load the weights and bias of the new convolutional layer
+            new_conv.weight.data = torch.from_numpy(new_weights)
+            new_conv.bias.data = torch.from_numpy(new_bias)
+            
+            # TODO: Initialize the weights and bias of the new batch normalization
+            print("The weights and bias of the new batch normalization layer are"
+                "not initialized yet. To be implemented.")
+            
+            # Add the new modules (ie {convolutional layer + batch normalization
+            # layer + ReLU activation}) to the network after the previous
+            # convolutional layer
+            add_modules(self.student_network, layer_to_deeper, new_conv, new_bn)
 
     
         model_1_epoch = Net2Net.train_1_epoch(self,self.student_network)
@@ -434,7 +434,7 @@ if __name__ == '__main__':
     # Set the convolutional layer to copy in order to deepen the network
     # (we assume that this layer is followed by a batch normalization layer
     # and a ReLU activation)
-    previous_conv = "layer1.0"
+    previous_conv = ["layer1.0"]
     
     # Depen a layer of the network
     net2net.net2deeper_operation(previous_conv=previous_conv)

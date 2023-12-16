@@ -32,6 +32,10 @@ NB_CHANNELS = 3
 NORMALIZE_PARAMS = {"mean": (0.485, 0.456, 0.406),
                     "std": (0.229, 0.224, 0.225)}
 
+###################
+## Net2DeeperNet ##
+###################
+deeper_batchnorm = {}
 
 ##################
 ## Net2WiderNet ##
