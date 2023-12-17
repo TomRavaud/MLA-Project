@@ -11,7 +11,7 @@ import numpy as np
 DATASET_NAME = "CIFAR-10"
 
 # Path to the dedicated directory
-PATH = "cifar-10-batches-py"
+PATH = "src/inceptionv2_cifar/"
 
 # Study name
 STUDY_NAME = "test"
