@@ -13,3 +13,5 @@ logs/
 
 # Exclude the following files
 !README.md
+
+src/inceptionv2_cifar/plot_results.py

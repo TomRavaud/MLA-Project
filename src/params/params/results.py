@@ -7,7 +7,7 @@ This file contains the parameters for results' plotting.
 #################################
 
 # Set some parameters for the plot
-MARKER_SIZE = 8
+MARKER_SIZE = 6
 OPACITY = 0.2
 MARKER = "--."
 
@@ -24,4 +24,4 @@ PERCENTILE = 10
 CONFIDENCE_LEVEL = 0.05
 
 # Size of the markers for the scatter plot
-SCATTER_SIZE = 100
+SCATTER_SIZE = 40

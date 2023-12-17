@@ -32,6 +32,8 @@ pip3 install ipykernel
 python -m ipykernel install --user --name=mla
 ```
 
+Try to run the demo notebooks `src/inceptionv2_cifar/demo_net2wider.ipynb` and `src/inceptionv2_cifar/demo_net2deeper.ipynb` to check that everything is working fine.
+
 To exit the virtual environment, and remove it if needed, run the following commands:
 
 ```bash
@@ -74,7 +76,7 @@ The authors propose two techniques to increase the complexity of a neural networ
 - [x] Apply Net2WiderNet to Inception-V2 (need to adapt the code to take batch normalization and concatenation into account).
 - [x] Apply Net2DeeperNet to Inception-V2.
 - [x] Establish the pipeline to reproduce the results of the paper and set up the experiments on the university's GPU cluster.
-- [ ] Update the README files in the `src` directory to describe the code.
+- [x] Update the README files in the `src` directory to describe the code.
 - [x] Download the ImageNet dataset and train Inception-V2 from scratch on it.
 - [x] Add dropout to the Inception-V2 architecture (or some random noise to the replicated weights) to help the student network to learn to use its full capacity.
 - [x] Implement the "Random pad" baseline method to compare the Net2WiderNet technique with it.
