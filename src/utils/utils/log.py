@@ -1,3 +1,8 @@
+"""
+Functions to generate log files after training a network
+"""
+
+# Import libraries
 from tabulate import tabulate
 import os
 import torch
