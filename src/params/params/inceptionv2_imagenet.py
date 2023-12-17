@@ -35,7 +35,11 @@ NORMALIZE_PARAMS = {"mean": (0.485, 0.456, 0.406),
 ###################
 ## Net2DeeperNet ##
 ###################
-deeper_batchnorm = {}
+deeper_batchnorm ={"layer1.0": "layer1.4",
+                    "layer2.0": "layer2.4",
+                    "layer3.0": "layer3.4", 
+                    "layer4.0": "layer4.4",
+                    "layer5.0": "layer5.4"}
 
 ##################
 ## Net2WiderNet ##

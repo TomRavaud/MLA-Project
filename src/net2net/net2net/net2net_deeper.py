@@ -237,6 +237,9 @@ class Net2Net:
         device = "cpu" #if torch.cuda.is_available() else "cpu"
         print(f"Device: {device}\n")
         
+        # Move the model to the device
+        model_1_epoch.to(device)
+        
 
         # Set the train dataset size as a percentage of the original train dataset
         train_size = (len(self.train_dataset) - len(self.test_dataset))/len(self.train_dataset)
@@ -305,8 +308,7 @@ class Net2Net:
                             # Add running mean and running std in the dictionnary of modifications
                             modified_state_dict[name + '.bias'] = layer.running_mean
                             modified_state_dict[name + '.weight'] = layer.running_var
-
-                    if isinstance(layer, nn.Sequential):
+                    else :
                         for name_inside, layer_inside in layer.named_children():
                             if isinstance(layer_inside, nn.BatchNorm2d):
                                 # Create the name of the current layer
@@ -316,6 +318,17 @@ class Net2Net:
                                     #modifier gamma, beta : weights, bias
                                     modified_state_dict[name_inside + '.bias'] = layer_inside.running_mean #bias
                                     modified_state_dict[name_inside + '.weight'] = layer_inside.running_var #weight
+                            else :
+                                for name_inside2, layer_inside2 in layer_inside.named_children():
+                                    if isinstance(layer_inside, nn.BatchNorm2d):
+                                        # Create the name of the current layer
+                                        name_inside2 = ".".join([name_inside,name_inside2])
+                                        if name_inside2 == self.batch_param[layer_to_deeper]:
+                                            # Add running mean and running std in the dictionnary of modifications
+                                            #modifier gamma, beta : weights, bias
+                                            modified_state_dict[name_inside2 + '.bias'] = layer_inside2.running_mean #bias
+                                            modified_state_dict[name_inside2 + '.weight'] = layer_inside2.running_var #weight
+
                 
                 # load the modification in the model
                 model.load_state_dict(modified_state_dict,strict=False)
@@ -359,7 +372,7 @@ class Net2Net:
         for layer_to_deeper in previous_conv:
             # Go through the modules of the network
             for name, module in self.student_network.named_modules():
-                
+                #print(name)
                 # Check if the current module is the one to be copied
                 if name == layer_to_deeper:
                     

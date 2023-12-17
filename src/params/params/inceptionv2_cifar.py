@@ -11,7 +11,7 @@ import numpy as np
 DATASET_NAME = "CIFAR-10"
 
 # Path to the dedicated directory
-PATH = "src/inceptionv2_cifar/"
+PATH = "cifar-10-batches-py"
 
 # Study name
 STUDY_NAME = "test"
@@ -100,7 +100,27 @@ PATIENCE = 5
 ###################
 ## Net2DeeperNet ##
 ###################
-deeper_batchnorm = {}
+#List of layers to deepen
+deeper_operations = {"operation1": {"target_conv_layers": ["net.2.0.b1.0","net.2.0.b2.0","net.2.0.b2.3","net.2.0.b3.0","net.2.0.b3.3","net.2.0.b4.1",
+                                                           "net.2.1.b1.0","net.2.1.b2.0","net.2.1.b2.3","net.2.1.b3.0","net.2.1.b3.3","net.2.1.b4.1",
+                                                           "net.3.0.b1.0","net.3.0.b2.0","net.3.0.b2.3","net.3.0.b3.0","net.3.0.b3.3","net.3.0.b4.1",
+                                                           "net.3.1.b1.0","net.3.1.b2.0","net.3.1.b2.3","net.3.1.b3.0","net.3.1.b3.3","net.3.1.b4.1",
+                                                           "net.3.2.b1.0","net.3.2.b2.0","net.3.2.b2.3","net.3.2.b3.0","net.3.2.b3.3","net.3.2.b4.1",
+                                                           "net.3.3.b1.0","net.3.3.b2.0","net.3.3.b2.3","net.3.3.b3.0","net.3.3.b3.3","net.3.3.b4.1",
+                                                           "net.3.4.b1.0","net.3.4.b2.0","net.3.4.b2.3","net.3.4.b3.0","net.3.4.b3.3","net.3.4.b4.1",
+                                                           "net.4.0.b1.0","net.4.0.b2.0","net.4.0.b2.3","net.4.0.b3.0","net.4.0.b3.3","net.4.0.b4.1",
+                                                           "net.4.1.b1.0","net.4.1.b2.0","net.4.1.b2.3","net.4.1.b3.0","net.4.1.b3.3","net.4.1.b4.1"]}}
+# list of batchnorm to add for each layer deepen
+deeper_batchnorm ={"net.2.0.b1.0": "net.2.0.b1.4","net.2.0.b2.0":"net.2.0.b2.4","net.2.0.b2.3":"net.2.0.b2.10","net.2.0.b3.0":"net.2.0.b3.4","net.2.0.b3.3":"net.2.0.b3.10","net.2.0.b4.1":"net.2.0.b4.5",
+                    "net.2.1.b1.0": "net.2.1.b1.4","net.2.1.b2.0":"net.2.1.b2.4","net.2.1.b2.3":"net.2.1.b2.10","net.2.1.b3.0":"net.2.1.b3.4","net.2.1.b3.3":"net.2.1.b3.10","net.2.1.b4.1":"net.2.1.b4.5",
+                    "net.3.0.b1.0": "net.3.0.b1.4","net.3.0.b2.0":"net.3.0.b2.4","net.3.0.b2.3":"net.3.0.b2.10","net.3.0.b3.0":"net.3.0.b3.4","net.3.0.b3.3":"net.3.0.b3.10","net.3.0.b4.1":"net.3.0.b4.5",
+                    "net.3.1.b1.0": "net.3.1.b1.4","net.3.1.b2.0":"net.3.1.b2.4","net.3.1.b2.3":"net.3.1.b2.10","net.3.1.b3.0":"net.3.1.b3.4","net.3.1.b3.3":"net.3.1.b3.10","net.3.1.b4.1":"net.3.1.b4.5",
+                    "net.3.2.b1.0": "net.3.2.b1.4","net.3.2.b2.0":"net.3.2.b2.4","net.3.2.b2.3":"net.3.2.b2.10","net.3.2.b3.0":"net.3.2.b3.4","net.3.2.b3.3":"net.3.2.b3.10","net.3.2.b4.1":"net.3.2.b4.5",
+                    "net.3.3.b1.0": "net.3.3.b1.4","net.3.3.b2.0":"net.3.3.b2.4","net.3.3.b2.3":"net.3.3.b2.10","net.3.3.b3.0":"net.3.3.b3.4","net.3.3.b3.3":"net.3.3.b3.10","net.3.3.b4.1":"net.3.3.b4.5",
+                    "net.3.4.b1.0": "net.3.4.b1.4","net.3.4.b2.0":"net.3.4.b2.4","net.3.4.b2.3":"net.3.4.b2.10","net.3.4.b3.0":"net.3.4.b3.4","net.3.4.b3.3":"net.3.4.b3.10","net.3.4.b4.1":"net.3.4.b4.5",
+                    "net.4.0.b1.0": "net.4.0.b1.4","net.4.0.b2.0":"net.4.0.b2.4","net.4.0.b2.3":"net.4.0.b2.10","net.4.0.b3.0":"net.4.0.b3.4","net.4.0.b3.3":"net.4.0.b3.10","net.4.0.b4.1":"net.4.0.b4.5",
+                    "net.4.1.b1.0": "net.4.1.b1.4","net.4.1.b2.0":"net.4.1.b2.4","net.4.1.b2.3":"net.4.1.b2.10","net.4.1.b3.0":"net.4.1.b3.4","net.4.1.b3.3":"net.4.1.b3.10","net.4.1.b4.1":"net.4.1.b4.5"}
+
 ##################
 ## Net2WiderNet ##
 ##################
